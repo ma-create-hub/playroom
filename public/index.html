@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Playroom Designer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo">🧸</span>
+        <h1>Playroom Designer</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="scaleStatus" class="scale-status pill warn">Scale not set</span>
+        <button id="btnCalibrate" class="btn">📏 Set scale</button>
+        <label class="btn" for="bgUpload">🖼️ Upload layout</label>
+        <input id="bgUpload" type="file" accept="image/*" hidden />
+        <button id="btnGrid" class="btn ghost" title="Toggle 1-ft grid">▦ Grid</button>
+        <button id="btnClear" class="btn ghost danger" title="Remove everything">Reset</button>
+      </div>
+    </header>
+
+    <div class="layout">
+      <!-- Sidebar: item links -->
+      <aside class="sidebar">
+        <div class="add-item">
+          <h2>Add an item</h2>
+          <p class="hint">Paste a product link. I'll pull the size automatically.</p>
+          <div class="add-row">
+            <input
+              id="linkInput"
+              type="url"
+              placeholder="https://www.ikea.com/…"
+              autocomplete="off"
+            />
+            <button id="btnAdd" class="btn primary">Add</button>
+          </div>
+          <div id="addStatus" class="add-status"></div>
+        </div>
+
+        <div class="items-head">
+          <h2>Items <span id="itemCount" class="count">0</span></h2>
+          <p class="hint">Drag an item's <strong>Place</strong> button, or click it to drop into the room.</p>
+        </div>
+        <ul id="itemList" class="item-list"></ul>
+      </aside>
+
+      <!-- Room stage -->
+      <main class="stage-wrap">
+        <div id="stageEmpty" class="stage-empty">
+          <div>
+            <div class="big">🏠</div>
+            <h3>Upload your room layout to begin</h3>
+            <p>Use <strong>Upload layout</strong> above, then <strong>Set scale</strong> by drawing a line along a wall you know the length of.</p>
+          </div>
+        </div>
+        <div id="stage" class="stage" hidden>
+          <img id="bgImage" class="bg-image" alt="Room layout" />
+          <canvas id="gridCanvas" class="grid-canvas"></canvas>
+          <div id="itemsLayer" class="items-layer"></div>
+          <svg id="calibrateLayer" class="calibrate-layer" hidden>
+            <line id="calLine" x1="0" y1="0" x2="0" y2="0" />
+            <circle id="calDotA" r="6" class="cal-dot" />
+            <circle id="calDotB" r="6" class="cal-dot" />
+          </svg>
+        </div>
+        <div id="calibrateHint" class="calibrate-hint" hidden>
+          Click two points a known distance apart on your layout…
+        </div>
+      </main>
+    </div>
+
+    <!-- Calibrate distance modal -->
+    <div id="calModal" class="modal" hidden>
+      <div class="modal-card">
+        <h3>What's the real distance?</h3>
+        <p class="hint">Enter the real-world length between the two points you clicked.</p>
+        <div class="cal-input">
+          <input id="calFeet" type="number" min="0" step="0.1" placeholder="ft" />
+          <span>ft</span>
+          <input id="calInches" type="number" min="0" step="0.1" placeholder="in" />
+          <span>in</span>
+        </div>
+        <div class="modal-actions">
+          <button id="calCancel" class="btn ghost">Cancel</button>
+          <button id="calConfirm" class="btn primary">Set scale</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
