@@ -417,7 +417,7 @@ async function addItem(){
   catch(err){setStatus('error','Auto-fetch blocked — added; enter the size manually.');}
   const item={id:uid(),url,site:safeHost(url),title:data?.title||safeHost(url),image:data?.image||null,
     width:data?.width??null,depth:data?.depth??null,height:data?.height??null,
-    source:data?.found?'scraped':'manual',placement:null};
+    source:data?.found?'scraped':'manual',shape:'rect',placement:null};
   state.items.unshift(item);save();renderItems();
   if(data?.found)setStatus('ok','Got it: '+describeDims(item));
   else if(data)setStatus('error','No size found on the page — enter it manually below.');
@@ -459,6 +459,7 @@ function renderItems(){
         <div class="dims">${dimInput('W',it.width,it.id)}${dimInput('D',it.depth,it.id)}${dimInput('H',it.height,it.id)}</div>
         <div class="item-actions">
           <button class="btn primary place-btn" data-id="${it.id}">${it.placement?'Re-center':'+ Place'}</button>
+          <button class="btn ghost shape-btn" data-id="${it.id}" title="Toggle round / rectangular footprint">${it.shape==='oval'?'⬭ Round':'▭ Rect'}</button>
           <button class="btn ghost refetch-btn" data-id="${it.id}" title="Re-fetch size from the link">↻</button>
           <button class="btn ghost danger del-btn" data-id="${it.id}">Delete</button>
         </div>
@@ -469,7 +470,8 @@ function renderItems(){
   renderPlacedItems();
 }
 function dimInput(label,val,id){return `<div class="dim"><label>${label}</label><input type="number" min="0" step="0.1" value="${val??''}" data-id="${id}" data-dim="${label}" placeholder="—"/><span class="unit">in</span></div>`;}
-el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);});
+el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn'),s=e.target.closest('.shape-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);if(s)toggleShape(s.dataset.id);});
+function toggleShape(id){const it=state.items.find(x=>x.id===id);if(!it)return;it.shape=it.shape==='oval'?'rect':'oval';save();renderItems();}
 el.itemList.addEventListener('input',e=>{const inp=e.target.closest('input[data-dim]');if(!inp)return;const it=state.items.find(x=>x.id===inp.dataset.id);if(!it)return;const key={W:'width',D:'depth',H:'height'}[inp.dataset.dim];const v=inp.value===''?null:parseFloat(inp.value);it[key]=isNaN(v)?null:v;it.source='manual';save();renderPlacedItems();});
 function deleteItem(id){state.items=state.items.filter(x=>x.id!==id);if(selectedId===id)selectedId=null;save();renderItems();}
 
@@ -499,6 +501,7 @@ function renderPlacedItems(){
     div.style.width=wPx+'px';div.style.height=hPx+'px';
     div.style.left=(cx-wPx/2)+'px';div.style.top=(cy-hPx/2)+'px';
     div.style.transform=`rotate(${it.placement.rotation||0}deg)`;
+    if(it.shape==='oval')div.style.borderRadius='50%';
     div.dataset.id=it.id;
     div.innerHTML=`<span class="pi-label">${escapeHtml(shortName(it.title))}<span class="pi-dims">${inchesToFtIn(wIn)} × ${inchesToFtIn(dIn)}</span></span>
       <div class="handle rotate" data-role="rotate">⟳</div><div class="handle remove" data-role="remove">✕</div>`;
