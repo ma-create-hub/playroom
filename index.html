@@ -57,14 +57,27 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
 .item-name{font-size:13px;font-weight:600;line-height:1.3;margin:0 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .item-site{font-size:11px;color:var(--muted)}
 .item-site a{color:var(--muted)}
+.variant-select{width:100%;max-width:none;margin-top:8px;font-size:12px;padding:5px 8px}
 .dims{display:flex;gap:4px;margin-top:8px}
 .dim{display:flex;flex-direction:column;align-items:center;background:#f5f6fb;border-radius:8px;padding:4px 2px;flex:1}
 .dim label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .dim input{width:100%;border:none;background:transparent;text-align:center;font-size:13px;font-weight:600;color:var(--ink);padding:1px 0}
 .dim input:focus{outline:1px solid var(--brand);border-radius:4px}
 .dim .unit{font-size:9px;color:var(--muted)}
-.item-actions{display:flex;gap:6px;margin-top:8px}
+.item-actions{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center}
 .item-actions .btn{padding:5px 9px;font-size:12px}
+.in-room{font-size:11px;font-weight:600;color:var(--accent);background:#e4f8f1;padding:2px 7px;border-radius:999px}
+.item-money{display:flex;gap:6px;margin-top:8px;align-items:center}
+.cost-field{display:flex;align-items:center;gap:2px;flex:1;background:#f5f6fb;border-radius:8px;padding:4px 8px;font-size:13px;font-weight:600;color:var(--muted)}
+.cost-field input{width:100%;border:none;background:transparent;font-size:13px;font-weight:600;color:var(--ink);padding:1px 0}
+.cost-field input:focus{outline:1px solid var(--brand);border-radius:4px}
+.purchased-btn{padding:5px 9px;font-size:12px}
+.purchased-btn.bought{background:var(--accent);border-color:var(--accent);color:#fff}
+.budget-bar{border-top:1px solid var(--line);padding:12px 16px;background:var(--panel)}
+.budget-total{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted)}
+.budget-total strong{font-size:20px;color:var(--ink)}
+.budget-split{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+#budgetBought{color:var(--accent);font-weight:600}
 .badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;position:absolute;top:8px;right:8px}
 .badge.scraped{background:#e4f8f1;color:var(--accent)}
 .badge.manual{background:#fef3e2;color:#b8860b}
@@ -140,6 +153,10 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
       <p class="hint">Click <strong>+ Place</strong> to drop an item into the room, then drag it. Handles: <strong>⟳</strong> rotate, <strong>✕</strong> remove.</p>
     </div>
     <ul id="itemList" class="item-list"></ul>
+    <div id="budgetBar" class="budget-bar" hidden>
+      <div class="budget-total"><span>Total</span><strong id="budgetTotal">$0</strong></div>
+      <div class="budget-split"><span id="budgetBought">Purchased: $0</span><span id="budgetLeft">Remaining: $0</span></div>
+    </div>
   </aside>
 
   <main class="stage-wrap">
@@ -237,18 +254,78 @@ const round=n=>Math.round(n*100)/100;
 function unitFactor(u){if(!u)return null;const k=String(u).trim().toLowerCase().replace(/\.$/,'');return U2IN[k]??null;}
 function toInches(v,u){const fx=unitFactor(u);if(fx==null||!isFinite(v))return null;return round(v*fx);}
 const UP=`(?:inches|inch|in|feet|foot|ft|centimeters|centimeter|cm|millimeters|millimeter|mm|meters|metres|meter|metre|m|"|”|″|'|’)`;
+// Reject a match that sits inside a price / rating / weight context so we never
+// read "$1,299 x 2" or "4.5 x 800 reviews" as a size. A dimension needs a unit.
+function badContext(str){return /\$|\bstar|\brating|\breview|\blb\b|\blbs\b|\bpound/i.test(str);}
 function parseTriple(text){
   const lab=/(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])\s*[x×by\s]+\s*(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])\s*[x×by\s]+\s*(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])/;
   const lm=text.match(lab);
-  if(lm){const su=lm[2]||lm[5]||lm[8]||'in';const p={};
+  if(lm&&!badContext(lm[0])){const su=lm[2]||lm[5]||lm[8]||'in';const p={};
     const set=(l,v,u)=>{const inn=toInches(parseFloat(v),u||su);if(inn==null)return;l=l.toUpperCase();if(l==='W')p.width=inn;else if(l==='D')p.depth=inn;else if(l==='H')p.height=inn;else if(l==='L')p.depth=inn;};
     set(lm[3],lm[1],lm[2]);set(lm[6],lm[4],lm[5]);set(lm[9],lm[7],lm[8]);
     if(p.width||p.depth||p.height)return{...p,confidence:'high'};}
   const tri=new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?`,'i');
   const tm=text.match(tri);
-  if(tm){const u=tm[2]||tm[4]||tm[6]||'in';const w=toInches(parseFloat(tm[1]),tm[2]||u),d=toInches(parseFloat(tm[3]),tm[4]||u),h=toInches(parseFloat(tm[5]),tm[6]||u);
-    if(w||d||h)return{width:w,depth:d,height:h,confidence:'medium'};}
+  if(tm&&!badContext(tm[0])){
+    // A unit-less triple ("84 x 40 x 36") is only trusted next to a dimension
+    // cue, so plain number triples (ratios, model numbers) aren't misread.
+    const hasUnit=!!(tm[2]||tm[4]||tm[6]);
+    const pre=text.slice(Math.max(0,tm.index-28),tm.index).toLowerCase();
+    const cue=/dimension|measure|overall|assembled|footprint|size|w x|l x|product dim|\bin\.?\)/.test(pre);
+    if(hasUnit||cue){const u=tm[2]||tm[4]||tm[6]||'in';const w=toInches(parseFloat(tm[1]),tm[2]||u),d=toInches(parseFloat(tm[3]),tm[4]||u),h=toInches(parseFloat(tm[5]),tm[6]||u);
+      if(w||d||h)return{width:w,depth:d,height:h,confidence:'medium'};}}
   return null;
+}
+// Detect a product that offers several W×D(×H) size options (rugs especially,
+// e.g. "5'x8', 8'x10', 9'x12'"). Each side must carry an explicit length unit so
+// review counts / ratios never register. Returns [] when fewer than 2 distinct.
+const VUNIT=`(?:''|"|”|″|'|’|ft|feet|foot|in|inch|inches|cm|mm|m)`;
+function variantLabel(w,d,h){return inchesToFtIn(w)+' × '+inchesToFtIn(d)+(h!=null?' × '+inchesToFtIn(h):'');}
+function parseSizeVariants(text){
+  const re=new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${VUNIT})\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${VUNIT})(?:\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${VUNIT}))?`,'gi');
+  const out=[],seen=new Set();let m;
+  while((m=re.exec(text))){
+    if(badContext(m[0]))continue;
+    const w=toInches(parseFloat(m[1]),m[2]),d=toInches(parseFloat(m[3]),m[4]);
+    const h=m[5]!=null?toInches(parseFloat(m[5]),m[6]):null;
+    if(w==null||d==null)continue;
+    const key=w+'x'+d+'x'+(h??'');
+    if(seen.has(key))continue;seen.add(key);
+    out.push({w,d,h,label:variantLabel(w,d,h)});
+  }
+  return out;
+}
+// Strip trailing "| West Elm", "- IKEA", "– Target" etc. from scraped titles.
+const SITE_SUFFIX=new RegExp('\\s*[|\\u2013\\u2014\\-:]\\s*(?:'+[
+  'west elm','pottery barn kids','pottery barn','pbteen','pb teen','pbkids','crate\\s*&?\\s*kids','crate\\s*&?\\s*barrel','cb2','ikea','target','wayfair','amazon(?:\\.com)?','walmart','the home depot','home depot',"lowe'?s",'overstock','world market','article','ashley(?: furniture)?','rooms to go','nordstrom',"macy'?s",'etsy','houzz','all\\s*modern','joss\\s*&?\\s*main','birch\\s*lane','anthropologie','urban outfitters','restoration hardware','maisons? du monde','the container store','serena\\s*&?\\s*lily'
+].join('|')+')\\s*$','i');
+function cleanTitle(t){
+  if(!t)return t;t=String(t).replace(/\s+/g,' ').trim();
+  let prev;do{prev=t;t=t.replace(SITE_SUFFIX,'').trim();}while(t!==prev&&t);
+  return t||prev;
+}
+// Read dimensions from structured spec rows: <table> (label cell + value cell),
+// <dl>/<dt>/<dd> pairs, and "Label: value" bullet lists — more reliable than a
+// flattened-text sweep because the label/value pairing is explicit.
+function parseStructuredDims(doc){
+  let out=null;
+  const consider=(labRaw,valRaw)=>{
+    const lab=String(labRaw||'').toLowerCase().replace(/\s+/g,' ').trim();const val=String(valRaw||'').trim();
+    if(!lab||!val)return;
+    if(/dimension|measurement|overall size|product size|assembled/.test(lab)){
+      const d=parseDims(val);if(d){out=out||{};for(const k of['width','depth','height'])if(d[k]!=null&&out[k]==null)out[k]=d[k];}return;}
+    let key=null;
+    if(/^(overall\s+)?width$|^w$|^width\b/.test(lab))key='width';
+    else if(/^(overall\s+)?(depth|length)$|^[dl]$|^(depth|length)\b/.test(lab))key='depth';
+    else if(/^(overall\s+)?height$|^h$|^height\b/.test(lab))key='height';
+    if(!key)return;
+    const m=val.match(new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UP})?`,'i'));
+    if(m){const inn=toInches(parseFloat(m[1]),m[2]||'in');if(inn!=null){out=out||{};if(out[key]==null)out[key]=inn;}}
+  };
+  doc.querySelectorAll('tr').forEach(tr=>{const c=tr.querySelectorAll('th,td');if(c.length>=2)consider(c[0].textContent,c[1].textContent);});
+  doc.querySelectorAll('dl').forEach(dl=>{const dt=[...dl.querySelectorAll('dt')],dd=[...dl.querySelectorAll('dd')];for(let i=0;i<Math.min(dt.length,dd.length);i++)consider(dt[i].textContent,dd[i].textContent);});
+  doc.querySelectorAll('li').forEach(li=>{const t=li.textContent||'';const ci=t.indexOf(':');if(ci>0&&ci<40)consider(t.slice(0,ci),t.slice(ci+1));});
+  return out&&(out.width!=null||out.depth!=null||out.height!=null)?out:null;
 }
 function parsePair(text){
   const p=new RegExp(`(?:size|dimensions?|measures?|footprint)?\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})`,'i');
@@ -285,15 +362,15 @@ const SEED_LINKS=[
 ];
 function seededState(){
   const s=defaultState();
-  s.items=SEED_LINKS.map(l=>({id:uid(),url:l.url,site:safeHost(l.url),title:l.title,image:null,width:null,depth:null,height:null,source:'manual',placement:null}));
+  s.items=SEED_LINKS.map(l=>({id:uid(),url:l.url,site:safeHost(l.url),title:l.title,image:null,width:null,depth:null,height:null,variants:null,variantIdx:0,cost:null,purchased:false,source:'manual',shape:'rect',placements:[]}));
   return s;
 }
 let library={currentId:null,designs:{}};
 let state=defaultState();   // the ACTIVE design's state (reassigned on switch)
-let selectedId=null;
+let selectedKey=null;   // "itemId:placementIndex" of the selected in-room copy
 
 const el={};
-['linkInput','btnAdd','addStatus','itemList','itemCount','bgUpload','bgImage','stage','stageEmpty','itemsLayer','gridCanvas','planLayer','calibrateLayer','calLine','calDotA','calDotB','calibrateHint','scaleStatus','btnPlan','btnCalibrate','btnGrid','btnClear','calModal','calFeet','calInches','calConfirm','calCancel','designSelect','btnNew','btnRename','btnDelete','btnExport','importFile'].forEach(id=>el[id]=document.getElementById(id));
+['linkInput','btnAdd','addStatus','itemList','itemCount','bgUpload','bgImage','stage','stageEmpty','itemsLayer','gridCanvas','planLayer','calibrateLayer','calLine','calDotA','calDotB','calibrateHint','scaleStatus','btnPlan','btnCalibrate','btnGrid','btnClear','calModal','calFeet','calInches','calConfirm','calCancel','designSelect','btnNew','btnRename','btnDelete','btnExport','importFile','budgetBar','budgetTotal','budgetBought','budgetLeft'].forEach(id=>el[id]=document.getElementById(id));
 
 const uid=()=>'i'+Math.random().toString(36).slice(2,9);
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -326,7 +403,19 @@ function loadLibrary(){
 }
 function normaliseState(s){
   s=s||{};
-  return{items:s.items||[],mode:s.mode||'plan',background:s.background||null,ppi:s.ppi??null,gridOn:!!s.gridOn};
+  return{items:(s.items||[]).map(migrateItem),mode:s.mode||'plan',background:s.background||null,ppi:s.ppi??null,gridOn:!!s.gridOn};
+}
+// Migrate legacy items: single `placement` object -> `placements` array so
+// furniture placed by existing users survives. Also normalise new fields.
+function migrateItem(it){
+  if(!it||typeof it!=='object')return it;
+  if(!Array.isArray(it.placements))it.placements=(it.placement&&typeof it.placement==='object')?[it.placement]:[];
+  delete it.placement;
+  if(it.shape==null)it.shape='rect';
+  if(!('variants'in it))it.variants=null;
+  if(!('cost'in it))it.cost=null;
+  if(!('purchased'in it))it.purchased=false;
+  return it;
 }
 
 // ---- Design management ----
@@ -342,7 +431,7 @@ function renderDesignList(){
 function activate(id){
   state=normaliseState(library.designs[id].state);
   library.designs[id].state=state;
-  library.currentId=id;selectedId=null;save();
+  library.currentId=id;selectedKey=null;save();
   el.btnGrid.classList.toggle('active',state.gridOn);
   renderDesignList();renderStage();renderItems();autoFetchMissing();
 }
@@ -398,8 +487,9 @@ function importDesign(file){
 // reliable — retailers embed schema.org Product data), then OpenGraph meta,
 // then a visible-text regex sweep as a last resort.
 function parseHtmlDoc(html){
-  let doc;try{doc=new DOMParser().parseFromString(html,'text/html');}catch{return{title:null,image:null,dims:null};}
-  let dims=null,title=null,image=null;
+  let doc;try{doc=new DOMParser().parseFromString(html,'text/html');}catch{return{title:null,image:null,dims:null,variants:null,price:null};}
+  let dims=null,title=null,image=null,price=null;
+  const readPrice=v=>{if(v==null)return null;const n=parseFloat(String(v).replace(/[^0-9.]/g,''));return isFinite(n)&&n>0?round(n):null;};
   const rd=v=>{
     if(v==null)return null;
     if(typeof v==='number')return round(v);
@@ -416,7 +506,20 @@ function parseHtmlDoc(html){
         if(!isP)continue;
         if(!title&&typeof it.name==='string')title=it.name;
         if(!image){if(typeof it.image==='string')image=it.image;else if(Array.isArray(it.image))image=it.image[0];else if(it.image&&it.image.url)image=it.image.url;}
-        const w=rd(it.width),d=rd(it.depth),h=rd(it.height);
+        // offers.price — offers may be an object, an array, or an AggregateOffer.
+        if(price==null&&it.offers){const offs=Array.isArray(it.offers)?it.offers:[it.offers];
+          for(const o of offs){if(!o)continue;const p=readPrice(o.price??o.lowPrice??o.priceSpecification?.price);if(p!=null){price=p;break;}}}
+        let w=rd(it.width),d=rd(it.depth),h=rd(it.height);
+        // schema.org additionalProperty: [{name,value,unitCode}] spec pairs.
+        if(it.additionalProperty){
+          const props=Array.isArray(it.additionalProperty)?it.additionalProperty:[it.additionalProperty];
+          for(const p of props){
+            if(!p||p.name==null||p.value==null)continue;
+            const nm=String(p.name).toLowerCase(),inn=toInches(parseFloat(p.value),p.unitCode||p.unitText||(String(p.value).match(new RegExp(UP,'i'))?.[0])||'in');
+            if(inn==null)continue;
+            if(w==null&&/width/.test(nm))w=inn;else if(d==null&&/depth|length/.test(nm))d=inn;else if(h==null&&/height/.test(nm))h=inn;
+          }
+        }
         if(!dims&&(w!=null||d!=null||h!=null))dims={width:w,depth:d,height:h};
       }
     }catch{}
@@ -424,32 +527,47 @@ function parseHtmlDoc(html){
   const meta=(sel,a='content')=>{const e=doc.querySelector(sel);return e?e.getAttribute(a):null;};
   if(!title)title=meta('meta[property="og:title"]')||meta('meta[name="twitter:title"]')||(doc.querySelector('title')?.textContent||'').trim()||null;
   if(!image)image=meta('meta[property="og:image"]')||meta('meta[name="twitter:image"]');
+  if(price==null)price=readPrice(meta('meta[property="product:price:amount"]')||meta('meta[property="og:price:amount"]')||meta('meta[itemprop="price"]'));
+  if(!dims)dims=parseStructuredDims(doc);            // spec tables / <dl> / bullet lists
+  // Multiple listed sizes (rugs): detect from the raw body text before stripping.
+  const bodyTxt=(doc.body?.textContent||'').replace(/\s+/g,' ');
+  const variants=parseSizeVariants(bodyTxt);
   if(!dims){doc.querySelectorAll('script,style,noscript').forEach(e=>e.remove());const txt=(doc.body?.textContent||'').replace(/\s+/g,' ');dims=parseDims(txt);}
-  return{title,image,dims};
+  // When several sizes exist, the selectable variant drives W/D/H so the card
+  // always matches the dropdown; default to the first listed size.
+  if(variants.length>1)dims={width:variants[0].w,depth:variants[0].d,height:variants[0].h??(dims&&dims.height)??null};
+  return{title:cleanTitle(title),image,dims,variants:variants.length>1?variants:null,price};
 }
 // CORS-friendly fetchers, tried in order; the first to yield dimensions wins.
 // HTML proxies let us read JSON-LD; the reader proxy returns clean text.
 function fetchers(url){
   const enc=encodeURIComponent(url);
+  // Ordered best-first. HTML proxies expose JSON-LD; reader proxies return clean
+  // text. codetabs + thingproxy are extra public fallbacks with permissive CORS.
   return [
     {u:'https://api.allorigins.win/raw?url='+enc,mode:'html'},
     {u:'https://corsproxy.io/?url='+enc,mode:'html'},
+    {u:'https://api.codetabs.com/v1/proxy/?quest='+enc,mode:'html'},
     {u:READER+url,mode:'text'},
+    {u:'https://thingproxy.freeboard.io/fetch/'+url,mode:'html'},
   ];
 }
 async function fetchDims(url){
-  const best={title:null,image:null,width:null,depth:null,height:null,found:false};
+  const best={title:null,image:null,width:null,depth:null,height:null,variants:null,price:null,found:false};
   let reached=false;
   for(const f of fetchers(url)){
     let body;
     try{const res=await fetch(f.u,{headers:{'Accept':f.mode==='text'?'text/plain':'text/html'}});if(!res.ok)continue;body=await res.text();}catch{continue;}
     if(!body)continue;reached=true;
-    let title=null,image=null,dims=null;
-    if(f.mode==='html'){({title,image,dims}=parseHtmlDoc(body));}
-    else{const tm=body.match(/^Title:\s*(.+)$/mi);const im=body.match(/https?:\/\/[^\s"')]+\.(?:jpg|jpeg|png|webp)/i);title=tm?tm[1].trim():null;image=im?im[0]:null;dims=parseDims(body);}
+    let title=null,image=null,dims=null,variants=null,price=null;
+    if(f.mode==='html'){({title,image,dims,variants,price}=parseHtmlDoc(body));}
+    else{const tm=body.match(/^Title:\s*(.+)$/mi);const im=body.match(/https?:\/\/[^\s"')]+\.(?:jpg|jpeg|png|webp)/i);title=cleanTitle(tm?tm[1].trim():null);image=im?im[0]:null;dims=parseDims(body);const vs=parseSizeVariants(body);variants=vs.length>1?vs:null;}
     best.title=best.title||title;best.image=best.image||image;
+    if(price!=null&&best.price==null)best.price=price;
+    if(variants&&!best.variants)best.variants=variants;
     if(dims&&(dims.width!=null||dims.depth!=null||dims.height!=null)){
       best.width=dims.width??null;best.depth=dims.depth??null;best.height=dims.height??null;best.found=true;
+      best.variants=best.variants||variants||null;
       return best;
     }
   }
@@ -461,6 +579,8 @@ function applyDims(it,d){
   if(!d)return false;
   if(d.title&&(!it.title||it.title===it.site))it.title=d.title;
   if(d.image&&!it.image)it.image=d.image;
+  if(d.variants&&d.variants.length>1&&(!it.variants||it.variants.length<2)){it.variants=d.variants;it.variantIdx=0;}
+  if(d.price!=null&&it.cost==null)it.cost=d.price;
   if(d.width!=null)it.width=d.width;
   if(d.depth!=null)it.depth=d.depth;
   if(d.height!=null)it.height=d.height;
@@ -477,7 +597,8 @@ async function addItem(){
     let data=null;try{data=await fetchDims(urls[i]);}catch{}
     const item={id:uid(),url:urls[i],site:safeHost(urls[i]),title:data?.title||safeHost(urls[i]),image:data?.image||null,
       width:data?.width??null,depth:data?.depth??null,height:data?.height??null,
-      source:data?.found?'scraped':'manual',shape:'rect',placement:null};
+      variants:data?.variants||null,variantIdx:0,cost:data?.price??null,purchased:false,
+      source:data?.found?'scraped':'manual',shape:'rect',placements:[]};
     if(item.id)autoTried.add(item.id);
     state.items.unshift(item);added++;if(data?.found)found++;save();renderItems();
   }
@@ -516,7 +637,8 @@ function renderItems(){
   el.itemList.innerHTML='';
   for(const it of state.items){
     const li=document.createElement('li');
-    li.className='item-card'+(it.placement?' placed':'');
+    const nPlaced=(it.placements&&it.placements.length)||0;
+    li.className='item-card'+(nPlaced?' placed':'');
     const thumb=it.image
       ?`<img class="item-thumb" src="${escapeHtml(it.image)}" alt="" onerror="this.classList.add('placeholder');this.removeAttribute('src');this.textContent='📦'"/>`
       :`<div class="item-thumb placeholder">📦</div>`;
@@ -524,56 +646,88 @@ function renderItems(){
       <div class="item-body">
         <p class="item-name" title="${escapeHtml(it.title)}">${escapeHtml(it.title)}</p>
         <div class="item-site"><a href="${escapeHtml(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.site)} ↗</a></div>
+        ${it.variants&&it.variants.length>1?`<select class="btn select variant-select" data-id="${it.id}" title="Choose a size">${it.variants.map((v,i)=>`<option value="${i}"${i===(it.variantIdx||0)?' selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`:''}
         <div class="dims">${dimInput('W',it.width,it.id)}${dimInput('D',it.depth,it.id)}${dimInput('H',it.height,it.id)}</div>
         <div class="item-actions">
-          <button class="btn primary place-btn" data-id="${it.id}">${it.placement?'Re-center':'+ Place'}</button>
+          <button class="btn primary place-btn" data-id="${it.id}">+ Place</button>
           <button class="btn ghost shape-btn" data-id="${it.id}" title="Toggle round / rectangular footprint">${it.shape==='oval'?'⬭ Round':'▭ Rect'}</button>
           <button class="btn ghost refetch-btn" data-id="${it.id}" title="Re-fetch size from the link">↻</button>
           <button class="btn ghost danger del-btn" data-id="${it.id}">Delete</button>
+          ${nPlaced?`<span class="in-room" title="Copies placed in the room">${nPlaced} in room</span>`:''}
+        </div>
+        <div class="item-money">
+          <label class="cost-field" title="Unit price (USD)">$<input type="number" min="0" step="0.01" class="cost-input" value="${it.cost??''}" data-id="${it.id}" placeholder="—"/></label>
+          <button class="btn ghost purchased-btn${it.purchased?' bought':''}" data-id="${it.id}" title="Mark as purchased">${it.purchased?'✓ Purchased':'Purchased?'}</button>
         </div>
       </div>
       <span class="badge ${it.source==='scraped'?'scraped':'manual'}">${it.source==='scraped'?'auto':'manual'}</span>`;
     el.itemList.appendChild(li);
   }
   renderPlacedItems();
+  renderBudget();
+}
+// Budget: qty counts each in-room copy (min 1), so multiples add to the total.
+const fmtUSD=n=>'$'+Math.round(n).toLocaleString('en-US');
+function renderBudget(){
+  let total=0,bought=0;
+  for(const it of state.items){
+    const qty=Math.max(1,(it.placements&&it.placements.length)||0);
+    const line=(it.cost||0)*qty;
+    total+=line;if(it.purchased)bought+=line;
+  }
+  el.budgetBar.hidden=!state.items.length;
+  el.budgetTotal.textContent=fmtUSD(total);
+  el.budgetBought.textContent='Purchased: '+fmtUSD(bought);
+  el.budgetLeft.textContent='Remaining: '+fmtUSD(total-bought);
 }
 function dimInput(label,val,id){return `<div class="dim"><label>${label}</label><input type="number" min="0" step="0.1" value="${val??''}" data-id="${id}" data-dim="${label}" placeholder="—"/><span class="unit">in</span></div>`;}
-el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn'),s=e.target.closest('.shape-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);if(s)toggleShape(s.dataset.id);});
+el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn'),s=e.target.closest('.shape-btn'),b=e.target.closest('.purchased-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);if(s)toggleShape(s.dataset.id);if(b)togglePurchased(b.dataset.id);});
+function togglePurchased(id){const it=state.items.find(x=>x.id===id);if(!it)return;it.purchased=!it.purchased;save();renderItems();}
 function toggleShape(id){const it=state.items.find(x=>x.id===id);if(!it)return;it.shape=it.shape==='oval'?'rect':'oval';save();renderItems();}
-el.itemList.addEventListener('input',e=>{const inp=e.target.closest('input[data-dim]');if(!inp)return;const it=state.items.find(x=>x.id===inp.dataset.id);if(!it)return;const key={W:'width',D:'depth',H:'height'}[inp.dataset.dim];const v=inp.value===''?null:parseFloat(inp.value);it[key]=isNaN(v)?null:v;it.source='manual';save();renderPlacedItems();});
-function deleteItem(id){state.items=state.items.filter(x=>x.id!==id);if(selectedId===id)selectedId=null;save();renderItems();}
+// Switch the active size on a multi-variant item, updating W/D/H to match.
+el.itemList.addEventListener('change',e=>{const s=e.target.closest('.variant-select');if(s)setVariant(s.dataset.id,parseInt(s.value,10));});
+function setVariant(id,idx){const it=state.items.find(x=>x.id===id);if(!it||!it.variants||!it.variants[idx])return;const v=it.variants[idx];it.variantIdx=idx;it.width=v.w;it.depth=v.d;if(v.h!=null)it.height=v.h;save();renderItems();}
+el.itemList.addEventListener('input',e=>{
+  const cinp=e.target.closest('.cost-input');
+  if(cinp){const it=state.items.find(x=>x.id===cinp.dataset.id);if(!it)return;const v=cinp.value===''?null:parseFloat(cinp.value);it.cost=(v==null||isNaN(v))?null:v;save();renderBudget();return;}
+  const inp=e.target.closest('input[data-dim]');if(!inp)return;const it=state.items.find(x=>x.id===inp.dataset.id);if(!it)return;const key={W:'width',D:'depth',H:'height'}[inp.dataset.dim];const v=inp.value===''?null:parseFloat(inp.value);it[key]=isNaN(v)?null:v;it.source='manual';save();renderPlacedItems();});
+function deleteItem(id){state.items=state.items.filter(x=>x.id!==id);if(selectedKey&&selectedKey.startsWith(id+':'))selectedKey=null;save();renderItems();}
 
-/* ---------- Placement ---------- */
+/* ---------- Placement (an item can appear 0..N times in the room) ---------- */
 function placeItem(id){
   const it=state.items.find(x=>x.id===id);if(!it)return;
   if(!state.ppi){setStatus('error','Set the room scale first.');return;}
   if(it.width==null&&it.depth==null){setStatus('error','Add a width or depth for this item first.');return;}
   const wrap=el.stage.parentElement;
   const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
-  const cx=wrap.scrollLeft+Math.min(wrap.clientWidth,stageW)/2;
-  const cy=wrap.scrollTop+Math.min(wrap.clientHeight,stageH)/2;
-  it.placement={xFrac:clamp(cx/stageW,.05,.95),yFrac:clamp(cy/stageH,.05,.95),rotation:it.placement?.rotation||0};
-  selectedId=id;save();renderItems();
+  // Cascade each new copy down-right so stacked copies stay distinguishable.
+  const off=(it.placements.length%8)*14;
+  const cx=wrap.scrollLeft+Math.min(wrap.clientWidth,stageW)/2+off;
+  const cy=wrap.scrollTop+Math.min(wrap.clientHeight,stageH)/2+off;
+  it.placements.push({xFrac:clamp(cx/stageW,.05,.95),yFrac:clamp(cy/stageH,.05,.95),rotation:0});
+  selectedKey=id+':'+(it.placements.length-1);save();renderItems();
 }
 function renderPlacedItems(){
   el.itemsLayer.innerHTML='';
   if(!state.ppi)return;
   const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
   for(const it of state.items){
-    if(!it.placement)continue;
+    if(!it.placements||!it.placements.length)continue;
     const wIn=it.width??it.depth??12,dIn=it.depth??it.width??12;
     const wPx=wIn*state.ppi,hPx=dIn*state.ppi;
-    const cx=it.placement.xFrac*stageW,cy=it.placement.yFrac*stageH;
-    const div=document.createElement('div');
-    div.className='placed-item'+(selectedId===it.id?' selected':'');
-    div.style.width=wPx+'px';div.style.height=hPx+'px';
-    div.style.left=(cx-wPx/2)+'px';div.style.top=(cy-hPx/2)+'px';
-    div.style.transform=`rotate(${it.placement.rotation||0}deg)`;
-    if(it.shape==='oval')div.style.borderRadius='50%';
-    div.dataset.id=it.id;
-    div.innerHTML=`<span class="pi-label">${escapeHtml(shortName(it.title))}<span class="pi-dims">${inchesToFtIn(wIn)} × ${inchesToFtIn(dIn)}</span></span>
-      <div class="handle rotate" data-role="rotate">⟳</div><div class="handle remove" data-role="remove">✕</div>`;
-    el.itemsLayer.appendChild(div);
+    it.placements.forEach((pl,idx)=>{
+      const cx=pl.xFrac*stageW,cy=pl.yFrac*stageH;
+      const div=document.createElement('div');
+      div.className='placed-item'+(selectedKey===it.id+':'+idx?' selected':'');
+      div.style.width=wPx+'px';div.style.height=hPx+'px';
+      div.style.left=(cx-wPx/2)+'px';div.style.top=(cy-hPx/2)+'px';
+      div.style.transform=`rotate(${pl.rotation||0}deg)`;
+      if(it.shape==='oval')div.style.borderRadius='50%';
+      div.dataset.id=it.id;div.dataset.idx=idx;
+      div.innerHTML=`<span class="pi-label">${escapeHtml(shortName(it.title))}<span class="pi-dims">${inchesToFtIn(wIn)} × ${inchesToFtIn(dIn)}</span></span>
+        <div class="handle rotate" data-role="rotate">⟳</div><div class="handle remove" data-role="remove">✕</div>`;
+      el.itemsLayer.appendChild(div);
+    });
   }
 }
 function shortName(n){return n&&n.length>28?n.slice(0,27)+'…':n||'Item';}
@@ -583,15 +737,18 @@ let drag=null;
 el.itemsLayer.addEventListener('pointerdown',e=>{
   const handle=e.target.closest('.handle'),piEl=e.target.closest('.placed-item');
   if(!piEl)return;
-  const id=piEl.dataset.id,it=state.items.find(x=>x.id===id);if(!it)return;
-  selectedId=id;renderPlacedItems();
-  const fresh=el.itemsLayer.querySelector(`.placed-item[data-id="${id}"]`);
-  if(handle&&handle.dataset.role==='remove'){it.placement=null;if(selectedId===id)selectedId=null;save();renderItems();return;}
+  const id=piEl.dataset.id,idx=+piEl.dataset.idx,it=state.items.find(x=>x.id===id);
+  if(!it||!it.placements||!it.placements[idx])return;
+  const pl=it.placements[idx];
+  selectedKey=id+':'+idx;renderPlacedItems();
+  const fresh=el.itemsLayer.querySelector(`.placed-item[data-id="${id}"][data-idx="${idx}"]`);
+  // Remove just this one copy, leaving other copies of the same item alone.
+  if(handle&&handle.dataset.role==='remove'){it.placements.splice(idx,1);selectedKey=null;save();renderItems();return;}
   const sr=el.stage.getBoundingClientRect(),stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
   if(handle&&handle.dataset.role==='rotate'){
-    drag={mode:'rotate',it,cx:it.placement.xFrac*stageW+sr.left,cy:it.placement.yFrac*stageH+sr.top};
+    drag={mode:'rotate',it,idx,pl,cx:pl.xFrac*stageW+sr.left,cy:pl.yFrac*stageH+sr.top};
   }else{
-    drag={mode:'move',it,fresh,stageW,stageH,startX:e.clientX,startY:e.clientY,ox:it.placement.xFrac,oy:it.placement.yFrac};
+    drag={mode:'move',it,idx,pl,fresh,stageW,stageH,startX:e.clientX,startY:e.clientY,ox:pl.xFrac,oy:pl.yFrac};
   }
   fresh?.setPointerCapture?.(e.pointerId);e.preventDefault();
 });
@@ -599,18 +756,18 @@ el.itemsLayer.addEventListener('pointermove',e=>{
   if(!drag)return;
   if(drag.mode==='move'){
     const dx=(e.clientX-drag.startX)/drag.stageW,dy=(e.clientY-drag.startY)/drag.stageH;
-    drag.it.placement.xFrac=clamp(drag.ox+dx,0,1);drag.it.placement.yFrac=clamp(drag.oy+dy,0,1);
-    positionEl(drag.fresh,drag.it);
+    drag.pl.xFrac=clamp(drag.ox+dx,0,1);drag.pl.yFrac=clamp(drag.oy+dy,0,1);
+    positionEl(drag.fresh,drag.it,drag.pl);
   }else{
     const ang=Math.atan2(e.clientY-drag.cy,e.clientX-drag.cx)*180/Math.PI+90;
-    drag.it.placement.rotation=Math.round(ang);
-    const d=el.itemsLayer.querySelector(`.placed-item[data-id="${drag.it.id}"]`);
-    if(d)d.style.transform=`rotate(${drag.it.placement.rotation}deg)`;
+    drag.pl.rotation=Math.round(ang);
+    const d=el.itemsLayer.querySelector(`.placed-item[data-id="${drag.it.id}"][data-idx="${drag.idx}"]`);
+    if(d)d.style.transform=`rotate(${drag.pl.rotation}deg)`;
   }
 });
-function positionEl(d,it){if(!d)return;const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;const wPx=(it.width??it.depth??12)*state.ppi,hPx=(it.depth??it.width??12)*state.ppi;d.style.left=(it.placement.xFrac*stageW-wPx/2)+'px';d.style.top=(it.placement.yFrac*stageH-hPx/2)+'px';}
+function positionEl(d,it,pl){if(!d)return;const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;const wPx=(it.width??it.depth??12)*state.ppi,hPx=(it.depth??it.width??12)*state.ppi;d.style.left=(pl.xFrac*stageW-wPx/2)+'px';d.style.top=(pl.yFrac*stageH-hPx/2)+'px';}
 window.addEventListener('pointerup',()=>{if(drag){save();drag=null;}});
-el.stage.addEventListener('pointerdown',e=>{if((e.target===el.stage||e.target===el.bgImage||e.target===el.gridCanvas||e.target.closest('#planLayer'))&&!calibrating){selectedId=null;renderPlacedItems();}});
+el.stage.addEventListener('pointerdown',e=>{if((e.target===el.stage||e.target===el.bgImage||e.target===el.gridCanvas||e.target.closest('#planLayer'))&&!calibrating){selectedKey=null;renderPlacedItems();}});
 
 /* ---------- Stage rendering ---------- */
 function renderStage(){
@@ -676,7 +833,7 @@ el.btnPlan.addEventListener('click',()=>{state.mode='plan';state.background=null
 el.bgUpload.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=()=>{state.background=r.result;state.mode='image';state.ppi=null;save();renderStage();setStatus('ok','Layout loaded — now press 📏 Set scale.');};r.readAsDataURL(file);});
 el.btnClear.addEventListener('click',()=>{
   if(!confirm('Reset “'+currentName()+'”? This clears its items and layout back to the room plan. The design itself is kept — use 🗑 to delete it entirely.'))return;
-  Object.assign(state,defaultState());selectedId=null;save();
+  Object.assign(state,defaultState());selectedKey=null;save();
   el.btnGrid.classList.remove('active');renderStage();renderItems();setStatus('ok','Design reset.');
 });
 
