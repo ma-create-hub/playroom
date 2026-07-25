@@ -54,7 +54,10 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
 .item-thumb{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#f0f1f6;flex-shrink:0}
 .item-thumb.placeholder{display:flex;align-items:center;justify-content:center;font-size:22px}
 .item-body{flex:1;min-width:0}
-.item-name{font-size:13px;font-weight:600;line-height:1.3;margin:0 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.name-row{display:flex;align-items:flex-start;gap:4px;padding-right:50px}
+.item-name{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.3;margin:0 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;cursor:text}
+.rename-btn{padding:1px 6px;font-size:11px;flex-shrink:0;line-height:1.4}
+.rename-input{flex:1;min-width:0;font-size:13px;font-weight:600;padding:2px 6px;border:1px solid var(--brand);border-radius:6px;outline:none}
 .item-site{font-size:11px;color:var(--muted)}
 .item-site a{color:var(--muted)}
 .variant-select{width:100%;max-width:none;margin-top:8px;font-size:12px;padding:5px 8px}
@@ -78,7 +81,7 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
 .budget-total strong{font-size:20px;color:var(--ink)}
 .budget-split{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
 #budgetBought{color:var(--accent);font-weight:600}
-.badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;position:absolute;top:8px;right:8px}
+.badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;position:absolute;top:8px;right:8px;pointer-events:none}
 .badge.scraped{background:#e4f8f1;color:var(--accent)}
 .badge.manual{background:#fef3e2;color:#b8860b}
 .stage-wrap{flex:1;position:relative;overflow:auto;background:
@@ -644,7 +647,10 @@ function renderItems(){
       :`<div class="item-thumb placeholder">📦</div>`;
     li.innerHTML=`${thumb}
       <div class="item-body">
-        <p class="item-name" title="${escapeHtml(it.title)}">${escapeHtml(it.title)}</p>
+        <div class="name-row">
+          <p class="item-name" title="${escapeHtml(it.title)}" data-id="${it.id}">${escapeHtml(it.title)}</p>
+          <button class="btn ghost rename-btn" data-id="${it.id}" title="Rename item">✎</button>
+        </div>
         <div class="item-site"><a href="${escapeHtml(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.site)} ↗</a></div>
         ${it.variants&&it.variants.length>1?`<select class="btn select variant-select" data-id="${it.id}" title="Choose a size">${it.variants.map((v,i)=>`<option value="${i}"${i===(it.variantIdx||0)?' selected':''}>${escapeHtml(v.label)}</option>`).join('')}</select>`:''}
         <div class="dims">${dimInput('W',it.width,it.id)}${dimInput('D',it.depth,it.id)}${dimInput('H',it.height,it.id)}</div>
@@ -681,7 +687,22 @@ function renderBudget(){
   el.budgetLeft.textContent='Remaining: '+fmtUSD(total-bought);
 }
 function dimInput(label,val,id){return `<div class="dim"><label>${label}</label><input type="number" min="0" step="0.1" value="${val??''}" data-id="${id}" data-dim="${label}" placeholder="—"/><span class="unit">in</span></div>`;}
-el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn'),s=e.target.closest('.shape-btn'),b=e.target.closest('.purchased-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);if(s)toggleShape(s.dataset.id);if(b)togglePurchased(b.dataset.id);});
+el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn'),s=e.target.closest('.shape-btn'),b=e.target.closest('.purchased-btn'),n=e.target.closest('.rename-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);if(s)toggleShape(s.dataset.id);if(b)togglePurchased(b.dataset.id);if(n)startRename(n.dataset.id);});
+el.itemList.addEventListener('dblclick',e=>{const nm=e.target.closest('.item-name');if(nm)startRename(nm.dataset.id);});
+// Inline-edit an item's name. Commits on Enter/blur, cancels on Escape.
+function startRename(id){
+  const it=state.items.find(x=>x.id===id);if(!it)return;
+  const nameEl=el.itemList.querySelector(`.item-name[data-id="${id}"]`);if(!nameEl)return;
+  const input=document.createElement('input');
+  input.className='rename-input';input.value=it.title||'';
+  nameEl.replaceWith(input);input.focus();input.select();
+  let done=false;
+  const finish=commit=>{if(done)return;done=true;
+    if(commit){const v=input.value.trim();if(v)it.title=v;save();}
+    renderItems();};
+  input.addEventListener('keydown',ev=>{if(ev.key==='Enter'){ev.preventDefault();finish(true);}else if(ev.key==='Escape'){ev.preventDefault();finish(false);}});
+  input.addEventListener('blur',()=>finish(true));
+}
 function togglePurchased(id){const it=state.items.find(x=>x.id===id);if(!it)return;it.purchased=!it.purchased;save();renderItems();}
 function toggleShape(id){const it=state.items.find(x=>x.id===id);if(!it)return;it.shape=it.shape==='oval'?'rect':'oval';save();renderItems();}
 // Switch the active size on a multi-variant item, updating W/D/H to match.
