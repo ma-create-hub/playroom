@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daughter's Playroom Designer</title>
+<style>
+:root{
+  --bg:#f6f7fb;--panel:#fff;--ink:#1f2430;--muted:#6b7280;--line:#e6e8ef;
+  --brand:#6c5ce7;--accent:#00b894;--warn:#e17055;--danger:#d63031;
+  --shadow:0 1px 3px rgba(20,24,40,.08),0 6px 24px rgba(20,24,40,.06);--radius:12px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg)}
+body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:var(--panel);border-bottom:1px solid var(--line);box-shadow:var(--shadow);z-index:20;gap:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .logo{font-size:26px}
+.brand h1{font-size:18px;margin:0;font-weight:700;letter-spacing:-.01em}
+.topbar-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{font-size:12px;font-weight:600;padding:5px 10px;border-radius:999px}
+.scale-status.warn{background:#fdece7;color:var(--warn)}
+.scale-status.ok{background:#e4f8f1;color:var(--accent)}
+.btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 12px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;transition:transform .05s,background .15s,border-color .15s;white-space:nowrap}
+.btn:hover{background:#f2f3f9}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{filter:brightness(1.05)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:#f3c6c6}
+.btn.danger:hover{background:#fdeaea}
+.btn.active{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--brand)}
+.sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
+.layout{flex:1;display:flex;min-height:0}
+.sidebar{width:330px;min-width:290px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
+.add-item{padding:16px;border-bottom:1px solid var(--line)}
+.add-item h2,.items-head h2{font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 10px;line-height:1.4}
+.add-row{display:flex;gap:8px}
+.add-row input{flex:1;min-width:0;padding:9px 10px;border:1px solid var(--line);border-radius:10px;font-size:13px}
+.add-row input:focus{outline:2px solid var(--brand);outline-offset:-1px}
+.add-status{font-size:12px;margin-top:8px;min-height:16px}
+.add-status.loading{color:var(--brand)}
+.add-status.error{color:var(--danger)}
+.add-status.ok{color:var(--accent)}
+.items-head{padding:16px 16px 6px}
+.count{display:inline-block;background:var(--brand);color:#fff;border-radius:999px;padding:1px 8px;font-size:12px;vertical-align:middle}
+.item-list{list-style:none;margin:0;padding:0 12px 20px;overflow-y:auto;flex:1}
+.item-card{border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin-bottom:10px;display:flex;gap:10px;background:#fff;position:relative}
+.item-card.placed{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent)}
+.item-thumb{width:54px;height:54px;border-radius:8px;object-fit:cover;background:#f0f1f6;flex-shrink:0}
+.item-thumb.placeholder{display:flex;align-items:center;justify-content:center;font-size:22px}
+.item-body{flex:1;min-width:0}
+.item-name{font-size:13px;font-weight:600;line-height:1.3;margin:0 0 2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.item-site{font-size:11px;color:var(--muted)}
+.item-site a{color:var(--muted)}
+.dims{display:flex;gap:4px;margin-top:8px}
+.dim{display:flex;flex-direction:column;align-items:center;background:#f5f6fb;border-radius:8px;padding:4px 2px;flex:1}
+.dim label{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.dim input{width:100%;border:none;background:transparent;text-align:center;font-size:13px;font-weight:600;color:var(--ink);padding:1px 0}
+.dim input:focus{outline:1px solid var(--brand);border-radius:4px}
+.dim .unit{font-size:9px;color:var(--muted)}
+.item-actions{display:flex;gap:6px;margin-top:8px}
+.item-actions .btn{padding:5px 9px;font-size:12px}
+.badge{font-size:10px;font-weight:600;padding:2px 6px;border-radius:6px;position:absolute;top:8px;right:8px}
+.badge.scraped{background:#e4f8f1;color:var(--accent)}
+.badge.manual{background:#fef3e2;color:#b8860b}
+.stage-wrap{flex:1;position:relative;overflow:auto;background:
+  linear-gradient(45deg,#eef0f6 25%,transparent 25%),linear-gradient(-45deg,#eef0f6 25%,transparent 25%),
+  linear-gradient(45deg,transparent 75%,#eef0f6 75%),linear-gradient(-45deg,transparent 75%,#eef0f6 75%);
+  background-size:24px 24px;background-position:0 0,0 12px,12px -12px,-12px 0;display:flex;align-items:center;justify-content:center;padding:24px}
+.stage{position:relative;box-shadow:var(--shadow);background:#fff;line-height:0}
+.stage.calibrating{cursor:crosshair}
+.plan-layer{position:absolute;inset:0}
+.plan-layer svg{display:block;width:100%;height:100%}
+.bg-image{display:block;max-width:none;user-select:none;-webkit-user-drag:none}
+.grid-canvas,.items-layer,.calibrate-layer{position:absolute;inset:0;width:100%;height:100%}
+.grid-canvas{pointer-events:none}
+.items-layer{pointer-events:none}
+.calibrate-layer{pointer-events:none;overflow:visible}
+.calibrate-layer line{stroke:var(--brand);stroke-width:3;stroke-dasharray:6 4}
+.cal-dot{fill:var(--brand)}
+.placed-item{position:absolute;pointer-events:auto;border:2px solid var(--brand);background:rgba(108,92,231,.16);border-radius:4px;cursor:grab;box-sizing:border-box;touch-action:none}
+.placed-item.selected{border-color:var(--accent);background:rgba(0,184,148,.2);z-index:5;box-shadow:0 0 0 2px rgba(0,184,148,.3)}
+.placed-item .pi-label{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:600;color:var(--ink);text-align:center;line-height:1.2;white-space:nowrap;pointer-events:none;background:rgba(255,255,255,.8);padding:2px 5px;border-radius:5px;max-width:96%;overflow:hidden;text-overflow:ellipsis}
+.placed-item .pi-dims{display:block;font-size:9px;color:var(--muted);font-weight:500}
+.placed-item .handle{position:absolute;width:26px;height:26px;border-radius:50%;background:var(--accent);color:#fff;display:none;align-items:center;justify-content:center;font-size:13px;cursor:grab;border:2px solid #fff;box-shadow:var(--shadow)}
+.placed-item.selected .handle{display:flex}
+.handle.rotate{top:-34px;left:50%;transform:translateX(-50%);cursor:alias}
+.handle.remove{top:-13px;right:-13px;background:var(--danger);cursor:pointer}
+.calibrate-hint{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);background:var(--brand);color:#fff;padding:10px 16px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:var(--shadow);z-index:15}
+.modal{position:fixed;inset:0;background:rgba(20,24,40,.4);display:flex;align-items:center;justify-content:center;z-index:50}
+.modal-card{background:#fff;border-radius:16px;padding:24px;width:340px;box-shadow:var(--shadow)}
+.modal-card h3{margin:0 0 6px}
+.cal-input{display:flex;align-items:center;gap:8px;margin:16px 0}
+.cal-input input{width:80px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:16px;text-align:center}
+.cal-input span{color:var(--muted);font-weight:600}
+.modal-actions{display:flex;justify-content:flex-end;gap:8px}
+@media(max-width:720px){.sidebar{width:270px;min-width:250px}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">🧸</span><h1>Daughter's Playroom Designer</h1></div>
+  <div class="topbar-actions">
+    <select id="designSelect" class="btn select" title="Switch design"></select>
+    <button id="btnNew" class="btn ghost" title="New design">＋ New</button>
+    <button id="btnRename" class="btn ghost" title="Rename current design">✎</button>
+    <button id="btnDelete" class="btn ghost" title="Delete current design">🗑</button>
+    <button id="btnExport" class="btn ghost" title="Download current design as a file">⬇ Save</button>
+    <label class="btn ghost" for="importFile" title="Load a design from a file">⬆ Load</label>
+    <input id="importFile" type="file" accept="application/json,.json" hidden />
+    <span class="sep"></span>
+    <span id="scaleStatus" class="scale-status pill warn">Scale not set</span>
+    <button id="btnPlan" class="btn">🏠 Room plan</button>
+    <button id="btnCalibrate" class="btn" hidden>📏 Set scale</button>
+    <label class="btn" for="bgUpload">🖼️ Custom layout</label>
+    <input id="bgUpload" type="file" accept="image/*" hidden />
+    <button id="btnGrid" class="btn ghost" title="Toggle 1-ft grid">▦ Grid</button>
+    <button id="btnClear" class="btn ghost danger" title="Remove everything">Reset</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="add-item">
+      <h2>Add an item</h2>
+      <p class="hint">Paste a product link — I'll try to pull the size automatically. You can always edit W/D/H by hand.</p>
+      <div class="add-row">
+        <input id="linkInput" type="url" placeholder="https://www.ikea.com/…" autocomplete="off" />
+        <button id="btnAdd" class="btn primary">Add</button>
+      </div>
+      <div id="addStatus" class="add-status"></div>
+    </div>
+    <div class="items-head">
+      <h2>Items <span id="itemCount" class="count">0</span></h2>
+      <p class="hint">Click <strong>+ Place</strong> to drop an item into the room, then drag it. Handles: <strong>⟳</strong> rotate, <strong>✕</strong> remove.</p>
+    </div>
+    <ul id="itemList" class="item-list"></ul>
+  </aside>
+
+  <main class="stage-wrap">
+    <div id="stageEmpty" class="stage-empty" hidden></div>
+    <div id="stage" class="stage">
+      <img id="bgImage" class="bg-image" alt="Room layout" hidden />
+      <div id="planLayer" class="plan-layer"></div>
+      <canvas id="gridCanvas" class="grid-canvas"></canvas>
+      <div id="itemsLayer" class="items-layer"></div>
+      <svg id="calibrateLayer" class="calibrate-layer" hidden>
+        <line id="calLine" x1="0" y1="0" x2="0" y2="0" />
+        <circle id="calDotA" r="6" class="cal-dot" /><circle id="calDotB" r="6" class="cal-dot" />
+      </svg>
+    </div>
+    <div id="calibrateHint" class="calibrate-hint" hidden>Click two points a known distance apart…</div>
+  </main>
+</div>
+
+<div id="calModal" class="modal" hidden>
+  <div class="modal-card">
+    <h3>What's the real distance?</h3>
+    <p class="hint">Enter the real length between the two points you clicked.</p>
+    <div class="cal-input">
+      <input id="calFeet" type="number" min="0" step="0.1" placeholder="ft" /><span>ft</span>
+      <input id="calInches" type="number" min="0" step="0.1" placeholder="in" /><span>in</span>
+    </div>
+    <div class="modal-actions">
+      <button id="calCancel" class="btn ghost">Cancel</button>
+      <button id="calConfirm" class="btn primary">Set scale</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   BUILT-IN FLOOR PLAN  (feet; origin top-left; y downward)
+   ============================================================ */
+const PLAN = {
+  id:'daughter', name:"Daughter's Room", ppf:30, widthFt:32, heightFt:20.417,
+  polygon:[[0,0],[21,0],[21,2.167],[32,2.167],[32,12.0],[21,12.0],[21,20.417],[6.75,20.417],[6.75,12.167],[0,12.167]],
+  features:[
+    {type:'console',x:7.75,y:0,w:9.833,h:1.833,label:'Built-in TV Console',sub:"9'10\" × 1'10\""},
+    {type:'window',x:0,y:4.375,w:0.28,h:3.417},
+    {type:'window',x:11.375,y:20.137,w:5,h:0.28},
+    {type:'door',x:32,yTop:4.5,yBottom:7.667,width:3.167},
+    {type:'stairs',x:30.167,y:4.5,w:1.833,h:3.167,steps:4,label:'Up to hall'},
+  ],
+};
+const PC={floor:'#fcfbf8',grout:'#efece5',wall:'#2b2b2b',console:'rgba(214,150,170,.35)',consoleStroke:'#c98aa0',window:'#4a90d9',door:'#9a8f80',stairs:'#e7e2d8',stairsStroke:'#b9b0a1',ink:'#4a4a4a'};
+
+function buildPlanSVG(plan){
+  const ppf=plan.ppf,W=plan.widthFt*ppf,H=plan.heightFt*ppf;
+  const f=v=>+(v*ppf).toFixed(2),wallW=Math.max(4,ppf*0.35);
+  const poly=plan.polygon.map(([x,y])=>`${f(x)},${f(y)}`).join(' ');
+  let grid='';
+  for(let gx=1;gx<plan.widthFt;gx++)grid+=`<line x1="${f(gx)}" y1="0" x2="${f(gx)}" y2="${H}"/>`;
+  for(let gy=1;gy<plan.heightFt;gy++)grid+=`<line x1="0" y1="${f(gy)}" x2="${W}" y2="${f(gy)}"/>`;
+  let feats='';
+  for(const ft of plan.features){
+    if(ft.type==='console'){
+      feats+=`<g><rect x="${f(ft.x)}" y="${f(ft.y)}" width="${f(ft.w)}" height="${f(ft.h)}" fill="${PC.console}" stroke="${PC.consoleStroke}" stroke-width="1.5"/>
+        <text x="${f(ft.x+ft.w/2)}" y="${f(ft.y+ft.h/2)-3}" text-anchor="middle" font-size="11" font-weight="700" fill="${PC.ink}">${ft.label}</text>
+        <text x="${f(ft.x+ft.w/2)}" y="${f(ft.y+ft.h/2)+9}" text-anchor="middle" font-size="9" fill="${PC.ink}">${ft.sub}</text></g>`;
+    }else if(ft.type==='window'){
+      feats+=`<rect x="${f(ft.x)}" y="${f(ft.y)}" width="${f(ft.w)}" height="${f(ft.h)}" fill="${PC.window}" opacity=".85"/>`;
+    }else if(ft.type==='door'){
+      const hx=f(ft.x);
+      const arc=`M ${hx} ${f(ft.yTop)} A ${f(ft.width)} ${f(ft.width)} 0 0 1 ${f(ft.x-ft.width)} ${f(ft.yBottom)}`;
+      feats+=`<g><rect x="${hx-2}" y="${f(ft.yTop)}" width="4" height="${f(ft.yBottom)-f(ft.yTop)}" fill="${PC.floor}"/>
+        <path d="${arc}" fill="none" stroke="${PC.door}" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <line x1="${hx}" y1="${f(ft.yBottom)}" x2="${f(ft.x-ft.width)}" y2="${f(ft.yBottom)}" stroke="${PC.door}" stroke-width="2"/></g>`;
+    }else if(ft.type==='stairs'){
+      let steps='';const stepH=ft.h/ft.steps;
+      for(let i=1;i<ft.steps;i++)steps+=`<line x1="${f(ft.x)}" y1="${f(ft.y+i*stepH)}" x2="${f(ft.x+ft.w)}" y2="${f(ft.y+i*stepH)}" stroke="${PC.stairsStroke}" stroke-width="1"/>`;
+      feats+=`<g><rect x="${f(ft.x)}" y="${f(ft.y)}" width="${f(ft.w)}" height="${f(ft.h)}" fill="${PC.stairs}" stroke="${PC.stairsStroke}" stroke-width="1"/>${steps}
+        <text x="${f(ft.x+ft.w/2)}" y="${f(ft.y+ft.h+12)}" text-anchor="middle" font-size="9" fill="${PC.ink}">${ft.label} ↑</text></g>`;
+    }
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="-apple-system,Segoe UI,Roboto,sans-serif">
+    <defs><clipPath id="roomClip"><polygon points="${poly}"/></clipPath></defs>
+    <polygon points="${poly}" fill="${PC.floor}"/>
+    <g clip-path="url(#roomClip)" stroke="${PC.grout}" stroke-width="1">${grid}</g>
+    ${feats}
+    <polygon points="${poly}" fill="none" stroke="${PC.wall}" stroke-width="${wallW}" stroke-linejoin="miter"/>
+    <text x="${f(plan.widthFt/2)}" y="${f(9)}" text-anchor="middle" font-size="20" font-weight="800" letter-spacing="1" fill="#cfcabf">${plan.name.toUpperCase()}</text>
+  </svg>`;
+}
+
+/* ============================================================
+   DIMENSION PARSING (client-side, text based)
+   ============================================================ */
+const U2IN={in:1,inch:1,inches:1,'"':1,'”':1,'″':1,ft:12,foot:12,feet:12,"'":12,'’':12,cm:1/2.54,centimeter:1/2.54,centimeters:1/2.54,mm:1/25.4,millimeter:1/25.4,millimeters:1/25.4,m:39.3701,meter:39.3701,meters:39.3701,metre:39.3701,metres:39.3701};
+const round=n=>Math.round(n*100)/100;
+function unitFactor(u){if(!u)return null;const k=String(u).trim().toLowerCase().replace(/\.$/,'');return U2IN[k]??null;}
+function toInches(v,u){const fx=unitFactor(u);if(fx==null||!isFinite(v))return null;return round(v*fx);}
+const UP=`(?:inches|inch|in|feet|foot|ft|centimeters|centimeter|cm|millimeters|millimeter|mm|meters|metres|meter|metre|m|"|”|″|'|’)`;
+function parseTriple(text){
+  const lab=/(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])\s*[x×by\s]+\s*(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])\s*[x×by\s]+\s*(\d+(?:\.\d+)?)\s*(inches|inch|in|feet|foot|ft|cm|mm|meters?|metres?|"|”|″|'|’)?\s*([WDHLwdhl])/;
+  const lm=text.match(lab);
+  if(lm){const su=lm[2]||lm[5]||lm[8]||'in';const p={};
+    const set=(l,v,u)=>{const inn=toInches(parseFloat(v),u||su);if(inn==null)return;l=l.toUpperCase();if(l==='W')p.width=inn;else if(l==='D')p.depth=inn;else if(l==='H')p.height=inn;else if(l==='L')p.depth=inn;};
+    set(lm[3],lm[1],lm[2]);set(lm[6],lm[4],lm[5]);set(lm[9],lm[7],lm[8]);
+    if(p.width||p.depth||p.height)return{...p,confidence:'high'};}
+  const tri=new RegExp(`(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?`,'i');
+  const tm=text.match(tri);
+  if(tm){const u=tm[2]||tm[4]||tm[6]||'in';const w=toInches(parseFloat(tm[1]),tm[2]||u),d=toInches(parseFloat(tm[3]),tm[4]||u),h=toInches(parseFloat(tm[5]),tm[6]||u);
+    if(w||d||h)return{width:w,depth:d,height:h,confidence:'medium'};}
+  return null;
+}
+function parsePair(text){
+  const p=new RegExp(`(?:size|dimensions?|measures?|footprint)?\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?\\s*[x×]\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})`,'i');
+  const m=text.match(p);
+  if(m){const u=m[2]||m[4];const w=toInches(parseFloat(m[1]),m[2]||u),d=toInches(parseFloat(m[3]),m[4]||u);if(w||d)return{width:w,depth:d,height:null,confidence:'low'};}
+  return null;
+}
+function parseLabelled(text){
+  const out={};
+  const grab=(labels,key)=>{const re=new RegExp(`(?:${labels})\\s*[:=]?\\s*(\\d+(?:\\.\\d+)?)\\s*(${UP})?`,'i');const m=text.match(re);if(m){const inn=toInches(parseFloat(m[1]),m[2]||'in');if(inn!=null)out[key]=inn;}};
+  grab('overall width|width|w','width');grab('overall depth|overall length|depth|length|d|l','depth');grab('overall height|height|h','height');
+  if(out.width||out.depth||out.height)return{...out,confidence:'low'};
+  return null;
+}
+function parseDims(text){return parseTriple(text)||parseLabelled(text)||parsePair(text)||null;}
+
+/* ============================================================
+   APP
+   ============================================================ */
+// Reader proxy: fetches a page server-side and returns readable text with
+// permissive CORS, so scraping works even from a local file:// page.
+const READER='https://r.jina.ai/';
+
+// ---- Storage: a "library" of named designs, one active at a time ----
+const LIB_KEY='daughters-playroom-lib-v1';
+const OLD_KEY='daughters-playroom-v1'; // pre-multi-design single state, for migration
+const APP_TAG='daughters-playroom';
+function defaultState(){return{items:[],mode:'plan',background:null,ppi:null,gridOn:false};}
+// Items pre-loaded into the very first design. Sizes are left blank so you can
+// pull them with the ↻ button on the live site, or type them in.
+const SEED_LINKS=[
+  {title:'Eva Chen Playful Shapes Rug',url:'https://www.westelm.com/products/eva-chen-playful-shapes-rug-t7355/'},
+  {title:'Carmen Sofa',url:'https://www.westelm.com/products/carmen-sofa-h9475/'},
+];
+function seededState(){
+  const s=defaultState();
+  s.items=SEED_LINKS.map(l=>({id:uid(),url:l.url,site:safeHost(l.url),title:l.title,image:null,width:null,depth:null,height:null,source:'manual',placement:null}));
+  return s;
+}
+let library={currentId:null,designs:{}};
+let state=defaultState();   // the ACTIVE design's state (reassigned on switch)
+let selectedId=null;
+
+const el={};
+['linkInput','btnAdd','addStatus','itemList','itemCount','bgUpload','bgImage','stage','stageEmpty','itemsLayer','gridCanvas','planLayer','calibrateLayer','calLine','calDotA','calDotB','calibrateHint','scaleStatus','btnPlan','btnCalibrate','btnGrid','btnClear','calModal','calFeet','calInches','calConfirm','calCancel','designSelect','btnNew','btnRename','btnDelete','btnExport','importFile'].forEach(id=>el[id]=document.getElementById(id));
+
+const uid=()=>'i'+Math.random().toString(36).slice(2,9);
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+function inchesToFtIn(inches){if(inches==null||isNaN(inches))return '—';const ft=Math.floor(inches/12);const rem=Math.round((inches-ft*12)*10)/10;if(ft&&rem)return `${ft}'${rem}"`;if(ft)return `${ft}'`;return `${rem}"`;}
+function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function safeHost(u){try{return new URL(u).hostname.replace(/^www\./,'');}catch{return u;}}
+
+// Auto-save: sync the active state into the library and persist everything.
+function save(){
+  if(library.currentId&&library.designs[library.currentId]){
+    library.designs[library.currentId].state=state;
+    library.designs[library.currentId].updatedAt=Date.now();
+  }
+  try{localStorage.setItem(LIB_KEY,JSON.stringify(library));}catch(e){console.warn('save failed',e);}
+}
+function loadLibrary(){
+  let lib=null;
+  try{const raw=localStorage.getItem(LIB_KEY);if(raw)lib=JSON.parse(raw);}catch(e){}
+  if(!lib||!lib.designs||!Object.keys(lib.designs).length){
+    // First run — migrate an old single-design save if present.
+    let migrated=null;
+    try{const old=localStorage.getItem(OLD_KEY);if(old)migrated=JSON.parse(old);}catch(e){}
+    const id=uid();
+    lib={currentId:id,designs:{[id]:{name:'Playroom',state:migrated||seededState(),updatedAt:Date.now()}}};
+  }
+  if(!lib.currentId||!lib.designs[lib.currentId])lib.currentId=Object.keys(lib.designs)[0];
+  library=lib;
+  state=normaliseState(library.designs[library.currentId].state);
+  library.designs[library.currentId].state=state;
+}
+function normaliseState(s){
+  s=s||{};
+  return{items:s.items||[],mode:s.mode||'plan',background:s.background||null,ppi:s.ppi??null,gridOn:!!s.gridOn};
+}
+
+// ---- Design management ----
+function currentName(){return library.designs[library.currentId]?.name||'Design';}
+function renderDesignList(){
+  const sel=el.designSelect;sel.innerHTML='';
+  const entries=Object.entries(library.designs).sort((a,b)=>(b[1].updatedAt||0)-(a[1].updatedAt||0));
+  for(const [id,d] of entries){
+    const o=document.createElement('option');o.value=id;o.textContent=d.name;
+    if(id===library.currentId)o.selected=true;sel.appendChild(o);
+  }
+}
+function activate(id){
+  state=normaliseState(library.designs[id].state);
+  library.designs[id].state=state;
+  library.currentId=id;selectedId=null;save();
+  el.btnGrid.classList.toggle('active',state.gridOn);
+  renderDesignList();renderStage();renderItems();
+}
+function switchDesign(id){if(library.designs[id]){save();activate(id);}}
+function newDesign(){
+  const name=(prompt('Name this design:','Design '+(Object.keys(library.designs).length+1))||'').trim();
+  if(!name)return;
+  save();
+  const id=uid();
+  library.designs[id]={name,state:defaultState(),updatedAt:Date.now()};
+  activate(id);setStatus('ok','Created “'+name+'”.');
+}
+function renameDesign(){
+  const cur=library.designs[library.currentId];if(!cur)return;
+  const name=(prompt('Rename design:',cur.name)||'').trim();
+  if(!name)return;cur.name=name;save();renderDesignList();
+}
+function deleteCurrentDesign(){
+  if(Object.keys(library.designs).length<=1){setStatus('error','This is your only design — use Reset to clear it.');return;}
+  if(!confirm('Delete “'+currentName()+'”? This cannot be undone.'))return;
+  delete library.designs[library.currentId];
+  activate(Object.keys(library.designs)[0]);
+}
+function exportDesign(){
+  save();
+  const payload={app:APP_TAG,version:1,name:currentName(),exportedAt:new Date().toISOString(),state};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=currentName().replace(/[^\w\-]+/g,'_')+'.playroom.json';
+  document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  setStatus('ok','Saved “'+currentName()+'” to a file.');
+}
+function importDesign(file){
+  const r=new FileReader();
+  r.onload=()=>{
+    let data;try{data=JSON.parse(r.result);}catch{setStatus('error','That file isn’t valid JSON.');return;}
+    const st=data&&data.state?data.state:data;
+    if(!st||typeof st!=='object'||!('items'in st)){setStatus('error','That doesn’t look like a saved design.');return;}
+    save();
+    const base=(data.name||file.name.replace(/\.playroom\.json$|\.json$/i,'')||'Imported').trim();
+    const names=Object.values(library.designs).map(d=>d.name);
+    let name=base,n=2;while(names.includes(name))name=base+' ('+(n++)+')';
+    const id=uid();
+    library.designs[id]={name,state:normaliseState(st),updatedAt:Date.now()};
+    activate(id);setStatus('ok','Loaded “'+name+'”.');
+  };
+  r.readAsText(file);
+}
+
+/* ---------- Adding items ---------- */
+// Fetch a product page through the reader proxy and pull out title/image/dims.
+async function fetchDims(url){
+  const res=await fetch(READER+url,{headers:{'Accept':'text/plain'}});
+  if(!res.ok)throw new Error('HTTP '+res.status);
+  const text=await res.text();
+  const dims=parseDims(text)||{};
+  const titleMatch=text.match(/^Title:\s*(.+)$/mi);
+  const imgMatch=text.match(/https?:\/\/[^\s"')]+\.(?:jpg|jpeg|png|webp)/i);
+  return{
+    title:(titleMatch&&titleMatch[1].trim())||null,
+    image:imgMatch?imgMatch[0]:null,
+    width:dims.width??null,depth:dims.depth??null,height:dims.height??null,
+    found:dims.width!=null||dims.depth!=null||dims.height!=null,
+  };
+}
+async function addItem(){
+  const url=el.linkInput.value.trim();if(!url)return;
+  el.btnAdd.disabled=true;
+  setStatus('loading','Fetching measurements…');
+  let data=null;
+  try{data=await fetchDims(url);}
+  catch(err){setStatus('error','Auto-fetch blocked — added; enter the size manually.');}
+  const item={id:uid(),url,site:safeHost(url),title:data?.title||safeHost(url),image:data?.image||null,
+    width:data?.width??null,depth:data?.depth??null,height:data?.height??null,
+    source:data?.found?'scraped':'manual',placement:null};
+  state.items.unshift(item);save();renderItems();
+  if(data?.found)setStatus('ok','Got it: '+describeDims(item));
+  else if(data)setStatus('error','No size found on the page — enter it manually below.');
+  el.linkInput.value='';el.btnAdd.disabled=false;
+}
+// Re-run the fetch for an item that's already in the list (e.g. a seeded link).
+async function refetchItem(id){
+  const it=state.items.find(x=>x.id===id);if(!it)return;
+  setStatus('loading','Re-fetching '+shortName(it.title)+'…');
+  try{
+    const d=await fetchDims(it.url);
+    if(d.title&&(!it.title||it.title===it.site))it.title=d.title;
+    if(d.image)it.image=d.image;
+    if(d.width!=null)it.width=d.width;
+    if(d.depth!=null)it.depth=d.depth;
+    if(d.height!=null)it.height=d.height;
+    if(d.found)it.source='scraped';
+    save();renderItems();
+    setStatus(d.found?'ok':'error',d.found?'Updated: '+describeDims(it):'No size found — enter it manually.');
+  }catch(e){setStatus('error','Fetch blocked for this link — enter the size manually.');}
+}
+function describeDims(it){const p=[];if(it.width!=null)p.push(it.width+'"W');if(it.depth!=null)p.push(it.depth+'"D');if(it.height!=null)p.push(it.height+'"H');return p.length?p.join(' × '):'no dimensions';}
+function setStatus(kind,msg){el.addStatus.className='add-status '+kind;el.addStatus.textContent=msg;if(kind==='ok')setTimeout(()=>{if(el.addStatus.textContent===msg)el.addStatus.textContent='';},4000);}
+
+/* ---------- Sidebar ---------- */
+function renderItems(){
+  el.itemCount.textContent=state.items.length;
+  el.itemList.innerHTML='';
+  for(const it of state.items){
+    const li=document.createElement('li');
+    li.className='item-card'+(it.placement?' placed':'');
+    const thumb=it.image
+      ?`<img class="item-thumb" src="${escapeHtml(it.image)}" alt="" onerror="this.classList.add('placeholder');this.removeAttribute('src');this.textContent='📦'"/>`
+      :`<div class="item-thumb placeholder">📦</div>`;
+    li.innerHTML=`${thumb}
+      <div class="item-body">
+        <p class="item-name" title="${escapeHtml(it.title)}">${escapeHtml(it.title)}</p>
+        <div class="item-site"><a href="${escapeHtml(it.url)}" target="_blank" rel="noopener">${escapeHtml(it.site)} ↗</a></div>
+        <div class="dims">${dimInput('W',it.width,it.id)}${dimInput('D',it.depth,it.id)}${dimInput('H',it.height,it.id)}</div>
+        <div class="item-actions">
+          <button class="btn primary place-btn" data-id="${it.id}">${it.placement?'Re-center':'+ Place'}</button>
+          <button class="btn ghost refetch-btn" data-id="${it.id}" title="Re-fetch size from the link">↻</button>
+          <button class="btn ghost danger del-btn" data-id="${it.id}">Delete</button>
+        </div>
+      </div>
+      <span class="badge ${it.source==='scraped'?'scraped':'manual'}">${it.source==='scraped'?'auto':'manual'}</span>`;
+    el.itemList.appendChild(li);
+  }
+  renderPlacedItems();
+}
+function dimInput(label,val,id){return `<div class="dim"><label>${label}</label><input type="number" min="0" step="0.1" value="${val??''}" data-id="${id}" data-dim="${label}" placeholder="—"/><span class="unit">in</span></div>`;}
+el.itemList.addEventListener('click',e=>{const p=e.target.closest('.place-btn'),d=e.target.closest('.del-btn'),r=e.target.closest('.refetch-btn');if(p)placeItem(p.dataset.id);if(d)deleteItem(d.dataset.id);if(r)refetchItem(r.dataset.id);});
+el.itemList.addEventListener('input',e=>{const inp=e.target.closest('input[data-dim]');if(!inp)return;const it=state.items.find(x=>x.id===inp.dataset.id);if(!it)return;const key={W:'width',D:'depth',H:'height'}[inp.dataset.dim];const v=inp.value===''?null:parseFloat(inp.value);it[key]=isNaN(v)?null:v;it.source='manual';save();renderPlacedItems();});
+function deleteItem(id){state.items=state.items.filter(x=>x.id!==id);if(selectedId===id)selectedId=null;save();renderItems();}
+
+/* ---------- Placement ---------- */
+function placeItem(id){
+  const it=state.items.find(x=>x.id===id);if(!it)return;
+  if(!state.ppi){setStatus('error','Set the room scale first.');return;}
+  if(it.width==null&&it.depth==null){setStatus('error','Add a width or depth for this item first.');return;}
+  const wrap=el.stage.parentElement;
+  const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
+  const cx=wrap.scrollLeft+Math.min(wrap.clientWidth,stageW)/2;
+  const cy=wrap.scrollTop+Math.min(wrap.clientHeight,stageH)/2;
+  it.placement={xFrac:clamp(cx/stageW,.05,.95),yFrac:clamp(cy/stageH,.05,.95),rotation:it.placement?.rotation||0};
+  selectedId=id;save();renderItems();
+}
+function renderPlacedItems(){
+  el.itemsLayer.innerHTML='';
+  if(!state.ppi)return;
+  const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
+  for(const it of state.items){
+    if(!it.placement)continue;
+    const wIn=it.width??it.depth??12,dIn=it.depth??it.width??12;
+    const wPx=wIn*state.ppi,hPx=dIn*state.ppi;
+    const cx=it.placement.xFrac*stageW,cy=it.placement.yFrac*stageH;
+    const div=document.createElement('div');
+    div.className='placed-item'+(selectedId===it.id?' selected':'');
+    div.style.width=wPx+'px';div.style.height=hPx+'px';
+    div.style.left=(cx-wPx/2)+'px';div.style.top=(cy-hPx/2)+'px';
+    div.style.transform=`rotate(${it.placement.rotation||0}deg)`;
+    div.dataset.id=it.id;
+    div.innerHTML=`<span class="pi-label">${escapeHtml(shortName(it.title))}<span class="pi-dims">${inchesToFtIn(wIn)} × ${inchesToFtIn(dIn)}</span></span>
+      <div class="handle rotate" data-role="rotate">⟳</div><div class="handle remove" data-role="remove">✕</div>`;
+    el.itemsLayer.appendChild(div);
+  }
+}
+function shortName(n){return n&&n.length>28?n.slice(0,27)+'…':n||'Item';}
+
+/* ---------- Drag / rotate ---------- */
+let drag=null;
+el.itemsLayer.addEventListener('pointerdown',e=>{
+  const handle=e.target.closest('.handle'),piEl=e.target.closest('.placed-item');
+  if(!piEl)return;
+  const id=piEl.dataset.id,it=state.items.find(x=>x.id===id);if(!it)return;
+  selectedId=id;renderPlacedItems();
+  const fresh=el.itemsLayer.querySelector(`.placed-item[data-id="${id}"]`);
+  if(handle&&handle.dataset.role==='remove'){it.placement=null;if(selectedId===id)selectedId=null;save();renderItems();return;}
+  const sr=el.stage.getBoundingClientRect(),stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;
+  if(handle&&handle.dataset.role==='rotate'){
+    drag={mode:'rotate',it,cx:it.placement.xFrac*stageW+sr.left,cy:it.placement.yFrac*stageH+sr.top};
+  }else{
+    drag={mode:'move',it,fresh,stageW,stageH,startX:e.clientX,startY:e.clientY,ox:it.placement.xFrac,oy:it.placement.yFrac};
+  }
+  fresh?.setPointerCapture?.(e.pointerId);e.preventDefault();
+});
+el.itemsLayer.addEventListener('pointermove',e=>{
+  if(!drag)return;
+  if(drag.mode==='move'){
+    const dx=(e.clientX-drag.startX)/drag.stageW,dy=(e.clientY-drag.startY)/drag.stageH;
+    drag.it.placement.xFrac=clamp(drag.ox+dx,0,1);drag.it.placement.yFrac=clamp(drag.oy+dy,0,1);
+    positionEl(drag.fresh,drag.it);
+  }else{
+    const ang=Math.atan2(e.clientY-drag.cy,e.clientX-drag.cx)*180/Math.PI+90;
+    drag.it.placement.rotation=Math.round(ang);
+    const d=el.itemsLayer.querySelector(`.placed-item[data-id="${drag.it.id}"]`);
+    if(d)d.style.transform=`rotate(${drag.it.placement.rotation}deg)`;
+  }
+});
+function positionEl(d,it){if(!d)return;const stageW=el.stage.clientWidth,stageH=el.stage.clientHeight;const wPx=(it.width??it.depth??12)*state.ppi,hPx=(it.depth??it.width??12)*state.ppi;d.style.left=(it.placement.xFrac*stageW-wPx/2)+'px';d.style.top=(it.placement.yFrac*stageH-hPx/2)+'px';}
+window.addEventListener('pointerup',()=>{if(drag){save();drag=null;}});
+el.stage.addEventListener('pointerdown',e=>{if((e.target===el.stage||e.target===el.bgImage||e.target===el.gridCanvas||e.target.closest('#planLayer'))&&!calibrating){selectedId=null;renderPlacedItems();}});
+
+/* ---------- Stage rendering ---------- */
+function renderStage(){
+  if(state.mode==='plan'){
+    el.bgImage.hidden=true;el.planLayer.hidden=false;
+    el.planLayer.innerHTML=buildPlanSVG(PLAN);
+    const W=PLAN.widthFt*PLAN.ppf,H=PLAN.heightFt*PLAN.ppf;
+    el.stage.style.width=W+'px';el.stage.style.height=H+'px';
+    el.gridCanvas.width=W;el.gridCanvas.height=H;
+    state.ppi=PLAN.ppf/12;
+    el.btnCalibrate.hidden=true;
+    drawGrid();updateScaleStatus();renderPlacedItems();
+  }else if(state.mode==='image'&&state.background){
+    el.planLayer.hidden=true;el.bgImage.hidden=false;
+    el.btnCalibrate.hidden=false;
+    el.bgImage.onload=()=>{const W=el.bgImage.naturalWidth,H=el.bgImage.naturalHeight;el.stage.style.width=W+'px';el.stage.style.height=H+'px';el.gridCanvas.width=W;el.gridCanvas.height=H;drawGrid();renderPlacedItems();};
+    el.bgImage.src=state.background;
+    updateScaleStatus();
+  }
+}
+
+/* ---------- Grid ---------- */
+function drawGrid(){
+  const ctx=el.gridCanvas.getContext('2d');
+  ctx.clearRect(0,0,el.gridCanvas.width,el.gridCanvas.height);
+  if(!state.gridOn||!state.ppi)return;
+  const step=12*state.ppi;
+  ctx.strokeStyle='rgba(108,92,231,.32)';ctx.lineWidth=1;
+  for(let x=0;x<=el.gridCanvas.width;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,el.gridCanvas.height);ctx.stroke();}
+  for(let y=0;y<=el.gridCanvas.height;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(el.gridCanvas.width,y);ctx.stroke();}
+}
+el.btnGrid.addEventListener('click',()=>{state.gridOn=!state.gridOn;el.btnGrid.classList.toggle('active',state.gridOn);save();drawGrid();});
+
+/* ---------- Calibration (image mode) ---------- */
+let calibrating=false,calPoints=[];
+el.btnCalibrate.addEventListener('click',()=>{if(state.mode!=='image'||!state.background){setStatus('error','Upload a custom layout first.');return;}startCalibration();});
+function startCalibration(){calibrating=true;calPoints=[];el.stage.classList.add('calibrating');el.calibrateLayer.hidden=false;el.calDotA.style.display='none';el.calDotB.style.display='none';el.calLine.setAttribute('x1',0);el.calLine.setAttribute('y1',0);el.calLine.setAttribute('x2',0);el.calLine.setAttribute('y2',0);el.calibrateHint.hidden=false;el.calibrateHint.textContent='Click two points a known distance apart…';}
+function stopCalibration(){calibrating=false;el.stage.classList.remove('calibrating');el.calibrateHint.hidden=true;}
+el.stage.addEventListener('click',e=>{
+  if(!calibrating)return;
+  const rect=el.stage.getBoundingClientRect();
+  const sx=el.gridCanvas.width/rect.width,sy=el.gridCanvas.height/rect.height;
+  const x=(e.clientX-rect.left)*sx,y=(e.clientY-rect.top)*sy;
+  calPoints.push({x,y});
+  if(calPoints.length===1){el.calDotA.setAttribute('cx',pctX(x));el.calDotA.setAttribute('cy',pctY(y));el.calDotA.style.display='';el.calibrateHint.textContent='Now click the second point…';}
+  else if(calPoints.length===2){el.calDotB.setAttribute('cx',pctX(x));el.calDotB.setAttribute('cy',pctY(y));el.calDotB.style.display='';el.calLine.setAttribute('x1',pctX(calPoints[0].x));el.calLine.setAttribute('y1',pctY(calPoints[0].y));el.calLine.setAttribute('x2',pctX(x));el.calLine.setAttribute('y2',pctY(y));stopCalibration();el.calModal.hidden=false;el.calFeet.value='';el.calInches.value='';el.calFeet.focus();}
+});
+function pctX(nx){return nx/el.gridCanvas.width*el.stage.clientWidth;}
+function pctY(ny){return ny/el.gridCanvas.height*el.stage.clientHeight;}
+el.calConfirm.addEventListener('click',()=>{
+  const ft=parseFloat(el.calFeet.value)||0,inch=parseFloat(el.calInches.value)||0,total=ft*12+inch;
+  if(total<=0){el.calFeet.focus();return;}
+  const[a,b]=calPoints,pxDist=Math.hypot(b.x-a.x,b.y-a.y);
+  const disp=pxDist*(el.stage.clientWidth/el.gridCanvas.width);
+  state.ppi=disp/total;el.calModal.hidden=true;el.calibrateLayer.hidden=true;
+  updateScaleStatus();save();drawGrid();renderPlacedItems();setStatus('ok','Scale set: '+state.ppi.toFixed(2)+' px/in.');
+});
+el.calCancel.addEventListener('click',()=>{el.calModal.hidden=true;el.calibrateLayer.hidden=true;stopCalibration();});
+function updateScaleStatus(){if(state.ppi){el.scaleStatus.textContent=`Scale: 1 ft ≈ ${(state.ppi*12).toFixed(0)} px`;el.scaleStatus.className='scale-status pill ok';}else{el.scaleStatus.textContent='Scale not set';el.scaleStatus.className='scale-status pill warn';}}
+
+/* ---------- Mode switches ---------- */
+el.btnPlan.addEventListener('click',()=>{state.mode='plan';state.background=null;save();renderStage();});
+el.bgUpload.addEventListener('change',e=>{const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=()=>{state.background=r.result;state.mode='image';state.ppi=null;save();renderStage();setStatus('ok','Layout loaded — now press 📏 Set scale.');};r.readAsDataURL(file);});
+el.btnClear.addEventListener('click',()=>{
+  if(!confirm('Reset “'+currentName()+'”? This clears its items and layout back to the room plan. The design itself is kept — use 🗑 to delete it entirely.'))return;
+  Object.assign(state,defaultState());selectedId=null;save();
+  el.btnGrid.classList.remove('active');renderStage();renderItems();setStatus('ok','Design reset.');
+});
+
+/* ---------- Design controls ---------- */
+el.designSelect.addEventListener('change',e=>switchDesign(e.target.value));
+el.btnNew.addEventListener('click',newDesign);
+el.btnRename.addEventListener('click',renameDesign);
+el.btnDelete.addEventListener('click',deleteCurrentDesign);
+el.btnExport.addEventListener('click',exportDesign);
+el.importFile.addEventListener('change',e=>{const f=e.target.files?.[0];if(f)importDesign(f);e.target.value='';});
+
+el.linkInput.addEventListener('keydown',e=>{if(e.key==='Enter')addItem();});
+el.btnAdd.addEventListener('click',addItem);
+window.addEventListener('resize',()=>{drawGrid();renderPlacedItems();});
+
+/* ---------- Boot ---------- */
+loadLibrary();
+el.btnGrid.classList.toggle('active',state.gridOn);
+renderDesignList();
+renderStage();
+renderItems();
+</script>
+</body>
+</html>

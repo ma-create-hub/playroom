@@ -1,94 +1,75 @@
-# 🧸 Playroom Designer
+# 🧸 Daughter's Playroom Designer
 
-Design a room to scale in your browser. Upload a 2D layout image of the room,
-set the real-world scale, then paste product links — the app fetches each
-item's real dimensions and lets you drag its footprint around the room so you
-can plan the layout before you buy anything.
+A single-page web app for designing a playroom to scale. Your room is baked in
+as an exact, dimensioned floor plan — drop in furniture by pasting product
+links (the app pulls the real measurements) and drag the footprints around to
+plan the layout before buying anything.
 
-Built for planning a kid's playroom, but works for any room.
+It's one self-contained `index.html` file — no server, no build step — so it
+runs by double-clicking locally **or** hosted for free on GitHub Pages.
 
 ---
 
-## What it does
+## Features
 
-- **Upload your 2D layout** — a floor plan or top-down sketch of the room.
-- **Set the scale** — draw a line along something you know the length of
-  (a wall, a doorway) and type the real distance. Everything scales from that.
-- **Add items by link** — paste a product URL (IKEA, Wayfair, Amazon, etc.).
-  A small backend fetches the page and extracts the width / depth / height.
-- **Manage your shortlist** — items live in a column on the left. Edit any
-  dimension by hand, or delete items you don't want.
-- **Place to scale** — drop each item into the room as an accurately-sized
-  footprint (top-down width × depth). Drag to move, rotate, and remove.
-- **1-foot grid** overlay to sanity-check spacing.
-- Everything is saved in your browser automatically (`localStorage`).
+- **Your room, to scale** — the daughter's room floor plan (32'-0" × 20'-5",
+  cross-shaped) is drawn precisely, with fixed features you design around:
+  built-in TV console, both windows, the door swing, and the stairs.
+- **Add items by link** — paste a product URL; the app fetches the page through
+  a reader proxy and extracts width / depth / height. Manual entry is always
+  available (and every card shows an `auto` / `manual` badge).
+- **Place to scale** — drop each item as an accurately-sized top-down footprint.
+  Drag to move, **⟳** to rotate, **✕** to remove.
+- **1-foot grid** overlay for checking spacing.
+- **Auto-save** — the full design is saved to your browser automatically on
+  every change and restored when you reopen the page.
+- **Multiple named designs** — keep several layouts (e.g. "Option A", "Option
+  B"); switch, rename, or delete from the dropdown.
+- **Save / Load files** — export the current design to a `.playroom.json` file
+  and import it back later or on another computer.
+- **Reset** — clears the current design back to the empty room (with a
+  confirmation); the design itself is kept.
 
 Units are **inches / feet**.
 
 ---
 
-## Running it
+## Hosting it on GitHub Pages (free)
 
-You need [Node.js](https://nodejs.org) 18 or newer.
+Your repo already contains `index.html` at the root, which is all Pages needs.
 
-```bash
-npm install
-npm start
-```
+1. Go to your repository on **github.com**.
+2. Click **Settings** (top menu) → **Pages** (left sidebar).
+3. Under **Build and deployment → Source**, choose **Deploy from a branch**.
+4. Under **Branch**, pick the branch that has this file
+   (`claude/playroom-design-tool-292mes`), keep the folder as **/ (root)**,
+   and click **Save**.
+5. Wait ~1 minute, then refresh the Pages settings page — it shows a green
+   banner with your live URL, like
+   `https://<your-username>.github.io/playroom/`.
 
-Then open **http://localhost:3000**.
+That URL is your app. Open it on any device; it works on phones and tablets too.
 
-For auto-reload during development: `npm run dev`.
-
----
-
-## How to use it
-
-1. **Upload layout** (top bar) → pick your room image.
-2. **📏 Set scale** → click two points a known distance apart on the image
-   (e.g. the two ends of a wall), then enter that real distance in ft/in.
-   The scale badge turns green when it's set.
-3. Paste a **product link** in the left sidebar and press **Add**. The size is
-   fetched automatically. If a site blocks the fetch (some big retailers do),
-   the item is still added — just type the dimensions into the W / D / H boxes.
-4. Click **+ Place** on an item to drop it into the room. Drag it to position,
-   use the **⟳** handle to rotate, and **✕** to take it back out.
-5. Toggle the **▦ Grid** (1 ft squares) to check spacing.
+> **Tip:** each browser stores its own designs (via `localStorage`). To move a
+> design from your laptop to your phone, use **⬇ Save** to export the file and
+> **⬆ Load** to import it on the other device.
 
 ---
 
-## How measurement scraping works
+## Running it locally instead
 
-The backend (`scraper.js`) fetches the product page server-side (so there are
-no browser CORS limits) and looks for dimensions in three layered ways, most
-reliable first:
-
-1. **JSON-LD structured data** (`schema.org/Product` `width`/`depth`/`height`).
-2. **"W × D × H" text patterns**, e.g. `47.2"W x 15.7"D x 31.5"H` or
-   `24 x 18 x 36 inches`, and 2-number footprints like rugs (`120 x 180 cm`).
-3. **Individually labelled values**, e.g. `Width: 18 in`.
-
-All units (cm, mm, m, ft, in) are converted to inches. Some retailers block
-automated requests or render dimensions only via JavaScript — in those cases
-nothing is found and you enter the size manually. The auto/manual badge on each
-card shows which happened.
+Just double-click `index.html`, or open it in any browser. Everything works the
+same, including saved designs (per browser).
 
 ---
-
-## Project layout
-
-```
-server.js       Express server: serves the app + /api/scrape endpoint
-scraper.js      Fetches a product page and extracts dimensions
-public/
-  index.html    App shell
-  style.css     Styles
-  app.js        Room stage, scale calibration, item placement, persistence
-```
 
 ## Notes & limits
 
-- Scraping is best-effort. Retail sites change constantly and many block bots;
-  manual entry is always available as a fallback.
-- The design is stored only in your browser. Clearing site data (or "Reset")
-  erases it. It is not shared between devices.
+- Auto-scraping is best-effort. Some retailers block automated requests or load
+  sizes only via JavaScript — in those cases nothing is found and you type the
+  dimensions in by hand.
+- Designs are stored in the browser you use. Clearing site data erases them —
+  use **⬇ Save** to keep a file backup.
+- You can also load a **custom layout** image (top bar) and set its scale by
+  drawing a line along a known distance, if you ever want to design a different
+  room.
