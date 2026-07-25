@@ -128,9 +128,9 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
   <aside class="sidebar">
     <div class="add-item">
       <h2>Add an item</h2>
-      <p class="hint">Paste a product link — I'll try to pull the size automatically. You can always edit W/D/H by hand.</p>
+      <p class="hint">Paste one or more product links — sizes are pulled automatically (and re-checked when you reopen the app). You can always edit W/D/H by hand.</p>
       <div class="add-row">
-        <input id="linkInput" type="url" placeholder="https://www.ikea.com/…" autocomplete="off" />
+        <input id="linkInput" type="url" placeholder="Paste link(s) — one or several" autocomplete="off" />
         <button id="btnAdd" class="btn primary">Add</button>
       </div>
       <div id="addStatus" class="add-status"></div>
@@ -231,7 +231,8 @@ function buildPlanSVG(plan){
 /* ============================================================
    DIMENSION PARSING (client-side, text based)
    ============================================================ */
-const U2IN={in:1,inch:1,inches:1,'"':1,'”':1,'″':1,ft:12,foot:12,feet:12,"'":12,'’':12,cm:1/2.54,centimeter:1/2.54,centimeters:1/2.54,mm:1/25.4,millimeter:1/25.4,millimeters:1/25.4,m:39.3701,meter:39.3701,meters:39.3701,metre:39.3701,metres:39.3701};
+const U2IN={in:1,inch:1,inches:1,'"':1,'”':1,'″':1,ft:12,foot:12,feet:12,"'":12,'’':12,cm:1/2.54,centimeter:1/2.54,centimeters:1/2.54,mm:1/25.4,millimeter:1/25.4,millimeters:1/25.4,m:39.3701,meter:39.3701,meters:39.3701,metre:39.3701,metres:39.3701,
+  /* UN/CEFACT codes used in schema.org JSON-LD */ inh:1,fot:12,cmt:1/2.54,mmt:1/25.4,mtr:39.3701};
 const round=n=>Math.round(n*100)/100;
 function unitFactor(u){if(!u)return null;const k=String(u).trim().toLowerCase().replace(/\.$/,'');return U2IN[k]??null;}
 function toInches(v,u){const fx=unitFactor(u);if(fx==null||!isFinite(v))return null;return round(v*fx);}
@@ -343,7 +344,7 @@ function activate(id){
   library.designs[id].state=state;
   library.currentId=id;selectedId=null;save();
   el.btnGrid.classList.toggle('active',state.gridOn);
-  renderDesignList();renderStage();renderItems();
+  renderDesignList();renderStage();renderItems();autoFetchMissing();
 }
 function switchDesign(id){if(library.designs[id]){save();activate(id);}}
 function newDesign(){
@@ -392,52 +393,119 @@ function importDesign(file){
   r.readAsText(file);
 }
 
-/* ---------- Adding items ---------- */
-// Fetch a product page through the reader proxy and pull out title/image/dims.
-async function fetchDims(url){
-  const res=await fetch(READER+url,{headers:{'Accept':'text/plain'}});
-  if(!res.ok)throw new Error('HTTP '+res.status);
-  const text=await res.text();
-  const dims=parseDims(text)||{};
-  const titleMatch=text.match(/^Title:\s*(.+)$/mi);
-  const imgMatch=text.match(/https?:\/\/[^\s"')]+\.(?:jpg|jpeg|png|webp)/i);
-  return{
-    title:(titleMatch&&titleMatch[1].trim())||null,
-    image:imgMatch?imgMatch[0]:null,
-    width:dims.width??null,depth:dims.depth??null,height:dims.height??null,
-    found:dims.width!=null||dims.depth!=null||dims.height!=null,
+/* ---------- Adding items (automated multi-strategy scraping) ---------- */
+// Pull title/image/dimensions from a full HTML string: JSON-LD first (most
+// reliable — retailers embed schema.org Product data), then OpenGraph meta,
+// then a visible-text regex sweep as a last resort.
+function parseHtmlDoc(html){
+  let doc;try{doc=new DOMParser().parseFromString(html,'text/html');}catch{return{title:null,image:null,dims:null};}
+  let dims=null,title=null,image=null;
+  const rd=v=>{
+    if(v==null)return null;
+    if(typeof v==='number')return round(v);
+    if(typeof v==='string'){const m=v.match(/(\d+(?:\.\d+)?)\s*([a-z"”″']+)?/i);return m?toInches(parseFloat(m[1]),m[2]||'in'):null;}
+    if(typeof v==='object'&&v.value!=null)return toInches(parseFloat(v.value),v.unitText||v.unitCode||'in');
+    return null;
   };
+  doc.querySelectorAll('script[type="application/ld+json"]').forEach(s=>{
+    try{
+      const data=JSON.parse(s.textContent);
+      const arr=Array.isArray(data)?data:(data['@graph']||[data]);
+      for(const it of arr){
+        const t=it&&it['@type'];const isP=t==='Product'||(Array.isArray(t)&&t.includes('Product'));
+        if(!isP)continue;
+        if(!title&&typeof it.name==='string')title=it.name;
+        if(!image){if(typeof it.image==='string')image=it.image;else if(Array.isArray(it.image))image=it.image[0];else if(it.image&&it.image.url)image=it.image.url;}
+        const w=rd(it.width),d=rd(it.depth),h=rd(it.height);
+        if(!dims&&(w!=null||d!=null||h!=null))dims={width:w,depth:d,height:h};
+      }
+    }catch{}
+  });
+  const meta=(sel,a='content')=>{const e=doc.querySelector(sel);return e?e.getAttribute(a):null;};
+  if(!title)title=meta('meta[property="og:title"]')||meta('meta[name="twitter:title"]')||(doc.querySelector('title')?.textContent||'').trim()||null;
+  if(!image)image=meta('meta[property="og:image"]')||meta('meta[name="twitter:image"]');
+  if(!dims){doc.querySelectorAll('script,style,noscript').forEach(e=>e.remove());const txt=(doc.body?.textContent||'').replace(/\s+/g,' ');dims=parseDims(txt);}
+  return{title,image,dims};
+}
+// CORS-friendly fetchers, tried in order; the first to yield dimensions wins.
+// HTML proxies let us read JSON-LD; the reader proxy returns clean text.
+function fetchers(url){
+  const enc=encodeURIComponent(url);
+  return [
+    {u:'https://api.allorigins.win/raw?url='+enc,mode:'html'},
+    {u:'https://corsproxy.io/?url='+enc,mode:'html'},
+    {u:READER+url,mode:'text'},
+  ];
+}
+async function fetchDims(url){
+  const best={title:null,image:null,width:null,depth:null,height:null,found:false};
+  let reached=false;
+  for(const f of fetchers(url)){
+    let body;
+    try{const res=await fetch(f.u,{headers:{'Accept':f.mode==='text'?'text/plain':'text/html'}});if(!res.ok)continue;body=await res.text();}catch{continue;}
+    if(!body)continue;reached=true;
+    let title=null,image=null,dims=null;
+    if(f.mode==='html'){({title,image,dims}=parseHtmlDoc(body));}
+    else{const tm=body.match(/^Title:\s*(.+)$/mi);const im=body.match(/https?:\/\/[^\s"')]+\.(?:jpg|jpeg|png|webp)/i);title=tm?tm[1].trim():null;image=im?im[0]:null;dims=parseDims(body);}
+    best.title=best.title||title;best.image=best.image||image;
+    if(dims&&(dims.width!=null||dims.depth!=null||dims.height!=null)){
+      best.width=dims.width??null;best.depth=dims.depth??null;best.height=dims.height??null;best.found=true;
+      return best;
+    }
+  }
+  if(!reached&&!best.title)throw new Error('all fetchers failed');
+  return best;
+}
+// Apply a fetch result onto an existing item (only fills blanks / better data).
+function applyDims(it,d){
+  if(!d)return false;
+  if(d.title&&(!it.title||it.title===it.site))it.title=d.title;
+  if(d.image&&!it.image)it.image=d.image;
+  if(d.width!=null)it.width=d.width;
+  if(d.depth!=null)it.depth=d.depth;
+  if(d.height!=null)it.height=d.height;
+  if(d.found)it.source='scraped';
+  return !!d.found;
 }
 async function addItem(){
-  const url=el.linkInput.value.trim();if(!url)return;
+  const urls=el.linkInput.value.split(/\s+/).map(s=>s.trim()).filter(u=>/^https?:\/\//i.test(u));
+  if(!urls.length){setStatus('error','Paste one or more http(s) links.');return;}
   el.btnAdd.disabled=true;
-  setStatus('loading','Fetching measurements…');
-  let data=null;
-  try{data=await fetchDims(url);}
-  catch(err){setStatus('error','Auto-fetch blocked — added; enter the size manually.');}
-  const item={id:uid(),url,site:safeHost(url),title:data?.title||safeHost(url),image:data?.image||null,
-    width:data?.width??null,depth:data?.depth??null,height:data?.height??null,
-    source:data?.found?'scraped':'manual',shape:'rect',placement:null};
-  state.items.unshift(item);save();renderItems();
-  if(data?.found)setStatus('ok','Got it: '+describeDims(item));
-  else if(data)setStatus('error','No size found on the page — enter it manually below.');
+  let added=0,found=0;
+  for(let i=0;i<urls.length;i++){
+    setStatus('loading','Fetching '+(i+1)+'/'+urls.length+'…');
+    let data=null;try{data=await fetchDims(urls[i]);}catch{}
+    const item={id:uid(),url:urls[i],site:safeHost(urls[i]),title:data?.title||safeHost(urls[i]),image:data?.image||null,
+      width:data?.width??null,depth:data?.depth??null,height:data?.height??null,
+      source:data?.found?'scraped':'manual',shape:'rect',placement:null};
+    if(item.id)autoTried.add(item.id);
+    state.items.unshift(item);added++;if(data?.found)found++;save();renderItems();
+  }
+  setStatus(found?'ok':'error',found?('Added '+added+' — got sizes for '+found+'.'):('Added '+added+' — no sizes found; enter them or tap ↻.'));
   el.linkInput.value='';el.btnAdd.disabled=false;
 }
-// Re-run the fetch for an item that's already in the list (e.g. a seeded link).
 async function refetchItem(id){
   const it=state.items.find(x=>x.id===id);if(!it)return;
+  autoTried.add(id);
   setStatus('loading','Re-fetching '+shortName(it.title)+'…');
-  try{
-    const d=await fetchDims(it.url);
-    if(d.title&&(!it.title||it.title===it.site))it.title=d.title;
-    if(d.image)it.image=d.image;
-    if(d.width!=null)it.width=d.width;
-    if(d.depth!=null)it.depth=d.depth;
-    if(d.height!=null)it.height=d.height;
-    if(d.found)it.source='scraped';
-    save();renderItems();
-    setStatus(d.found?'ok':'error',d.found?'Updated: '+describeDims(it):'No size found — enter it manually.');
-  }catch(e){setStatus('error','Fetch blocked for this link — enter the size manually.');}
+  try{const d=await fetchDims(it.url);const ok=applyDims(it,d);save();renderItems();
+    setStatus(ok?'ok':'error',ok?'Updated: '+describeDims(it):'No size found — enter it manually.');}
+  catch(e){setStatus('error','Fetch blocked for this link — enter the size manually.');}
+}
+// Automatically fill in sizes for any items still missing them, on load and
+// after switching designs. Best-effort and quiet; each item tried once/session.
+const autoTried=new Set();
+async function autoFetchMissing(){
+  const targets=state.items.filter(it=>it.url&&/^https?:\/\//i.test(it.url)&&it.width==null&&it.depth==null&&!autoTried.has(it.id));
+  if(!targets.length)return;
+  setStatus('loading','Auto-fetching sizes for '+targets.length+' item(s)…');
+  let got=0;
+  for(const it of targets){
+    autoTried.add(it.id);
+    try{if(applyDims(it,await fetchDims(it.url)))got++;save();renderItems();}catch{}
+  }
+  if(got)setStatus('ok','Auto-filled '+got+' size(s).');
+  else setStatus('error','Couldn’t auto-fetch these — enter sizes or tap ↻.');
 }
 function describeDims(it){const p=[];if(it.width!=null)p.push(it.width+'"W');if(it.depth!=null)p.push(it.depth+'"D');if(it.height!=null)p.push(it.height+'"H');return p.length?p.join(' × '):'no dimensions';}
 function setStatus(kind,msg){el.addStatus.className='add-status '+kind;el.addStatus.textContent=msg;if(kind==='ok')setTimeout(()=>{if(el.addStatus.textContent===msg)el.addStatus.textContent='';},4000);}
@@ -630,6 +698,7 @@ el.btnGrid.classList.toggle('active',state.gridOn);
 renderDesignList();
 renderStage();
 renderItems();
+autoFetchMissing();
 </script>
 </body>
 </html>
