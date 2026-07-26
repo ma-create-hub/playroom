@@ -36,6 +36,7 @@ body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
 .btn.active{background:var(--brand);border-color:var(--brand);color:#fff}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--brand)}
+.ver-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .sep{width:1px;align-self:stretch;background:var(--line);margin:0 2px}
 .layout{flex:1;display:flex;min-height:0}
 .sidebar{width:330px;min-width:290px;background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:hidden}
@@ -125,12 +126,14 @@ select.select{padding-right:24px;max-width:180px;font-weight:700;color:var(--bra
 <header class="topbar">
   <div class="brand"><span class="logo">🧸</span><h1>Daughter's Playroom Designer</h1></div>
   <div class="topbar-actions">
-    <select id="designSelect" class="btn select" title="Switch design"></select>
-    <button id="btnNew" class="btn ghost" title="New design">＋ New</button>
-    <button id="btnRename" class="btn ghost" title="Rename current design">✎</button>
-    <button id="btnDelete" class="btn ghost" title="Delete current design">🗑</button>
-    <button id="btnExport" class="btn ghost" title="Download current design as a file">⬇ Save</button>
-    <label class="btn ghost" for="importFile" title="Load a design from a file">⬆ Load</label>
+    <span class="ver-label">Version</span>
+    <select id="designSelect" class="btn select" title="Switch version"></select>
+    <button id="btnDuplicate" class="btn ghost" title="Duplicate this version (copies everything so you can try changes)">⧉ Duplicate</button>
+    <button id="btnNew" class="btn ghost" title="New blank version">＋ New</button>
+    <button id="btnRename" class="btn ghost" title="Rename this version">✎</button>
+    <button id="btnDelete" class="btn ghost" title="Delete this version">🗑</button>
+    <button id="btnExport" class="btn ghost" title="Download this version as a file">⬇ Save</button>
+    <label class="btn ghost" for="importFile" title="Load a version from a file">⬆ Load</label>
     <input id="importFile" type="file" class="vhidden" />
     <span class="sep"></span>
     <span id="scaleStatus" class="scale-status pill warn">Scale not set</span>
@@ -379,7 +382,7 @@ let state=defaultState();   // the ACTIVE design's state (reassigned on switch)
 let selectedKey=null;   // "itemId:placementIndex" of the selected in-room copy
 
 const el={};
-['linkInput','btnAdd','addStatus','itemList','itemCount','bgUpload','bgImage','stage','stageEmpty','itemsLayer','gridCanvas','planLayer','calibrateLayer','calLine','calDotA','calDotB','calibrateHint','scaleStatus','btnPlan','btnCalibrate','btnGrid','btnClear','calModal','calFeet','calInches','calConfirm','calCancel','designSelect','btnNew','btnRename','btnDelete','btnExport','importFile','budgetBar','budgetTotal','budgetBought','budgetLeft'].forEach(id=>el[id]=document.getElementById(id));
+['linkInput','btnAdd','addStatus','itemList','itemCount','bgUpload','bgImage','stage','stageEmpty','itemsLayer','gridCanvas','planLayer','calibrateLayer','calLine','calDotA','calDotB','calibrateHint','scaleStatus','btnPlan','btnCalibrate','btnGrid','btnClear','calModal','calFeet','calInches','calConfirm','calCancel','designSelect','btnDuplicate','btnNew','btnRename','btnDelete','btnExport','importFile','budgetBar','budgetTotal','budgetBought','budgetLeft'].forEach(id=>el[id]=document.getElementById(id));
 
 const uid=()=>'i'+Math.random().toString(36).slice(2,9);
 const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
@@ -445,22 +448,38 @@ function activate(id){
   renderDesignList();renderStage();renderItems();autoFetchMissing();
 }
 function switchDesign(id){if(library.designs[id]){save();activate(id);}}
+// Ensure a unique version name by appending (2), (3), … if needed.
+function uniqueName(base){
+  const names=Object.values(library.designs).map(d=>d.name);
+  let name=base,n=2;while(names.includes(name))name=base+' ('+(n++)+')';
+  return name;
+}
 function newDesign(){
-  const name=(prompt('Name this design:','Design '+(Object.keys(library.designs).length+1))||'').trim();
+  const name=(prompt('Name this version:','Version '+(Object.keys(library.designs).length+1))||'').trim();
   if(!name)return;
   save();
   const id=uid();
-  library.designs[id]={name,state:defaultState(),updatedAt:Date.now()};
-  activate(id);setStatus('ok','Created “'+name+'”.');
+  library.designs[id]={name:uniqueName(name),state:defaultState(),updatedAt:Date.now()};
+  activate(id);setStatus('ok','Created “'+library.designs[id].name+'”.');
+}
+// Duplicate the current version (full copy) so you can try a variation.
+function duplicateDesign(){
+  save();
+  const suggested=(currentName()+' copy');
+  const name=(prompt('Name the new version:',suggested)||'').trim();
+  if(!name)return;
+  const id=uid();
+  library.designs[id]={name:uniqueName(name),state:JSON.parse(JSON.stringify(state)),updatedAt:Date.now()};
+  activate(id);setStatus('ok','Duplicated to “'+library.designs[id].name+'”.');
 }
 function renameDesign(){
   const cur=library.designs[library.currentId];if(!cur)return;
-  const name=(prompt('Rename design:',cur.name)||'').trim();
+  const name=(prompt('Rename version:',cur.name)||'').trim();
   if(!name)return;cur.name=name;save();renderDesignList();
 }
 function deleteCurrentDesign(){
-  if(Object.keys(library.designs).length<=1){setStatus('error','This is your only design — use Reset to clear it.');return;}
-  if(!confirm('Delete “'+currentName()+'”? This cannot be undone.'))return;
+  if(Object.keys(library.designs).length<=1){setStatus('error','This is your only version — use Reset to clear it.');return;}
+  if(!confirm('Delete the “'+currentName()+'” version? This cannot be undone.'))return;
   delete library.designs[library.currentId];
   activate(Object.keys(library.designs)[0]);
 }
@@ -866,6 +885,7 @@ el.btnClear.addEventListener('click',()=>{
 
 /* ---------- Design controls ---------- */
 el.designSelect.addEventListener('change',e=>switchDesign(e.target.value));
+el.btnDuplicate.addEventListener('click',duplicateDesign);
 el.btnNew.addEventListener('click',newDesign);
 el.btnRename.addEventListener('click',renameDesign);
 el.btnDelete.addEventListener('click',deleteCurrentDesign);
