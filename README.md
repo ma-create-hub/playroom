@@ -1,3 +1,9 @@
+> **Also in this repo:** [🀄 Learn American Mah Jongg](mahjong/) — a self-contained
+> app for learning the NMJL game: lessons, tile reference, card-notation decoder,
+> drills, and a practice table with bots. Open `mahjong/index.html`.
+
+---
+
 # 🧸 Daughter's Playroom Designer
 
 A single-page web app for designing a playroom to scale. Your room is baked in

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Learn American Mah Jongg</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🀄</span>
+    <div>
+      <h1>Learn American Mah Jongg</h1>
+      <p class="sub">Rules, the card, and drills — the National Mah Jongg League game</p>
+    </div>
+  </div>
+  <div class="progress-wrap" title="Lessons completed">
+    <div class="progress-bar"><span id="progressFill"></span></div>
+    <span class="progress-text" id="progressText">0 / 9 lessons</span>
+  </div>
+</header>
+
+<nav class="tabs" id="tabs">
+  <button class="tab" data-view="learn">Learn</button>
+  <button class="tab" data-view="tiles">Tiles</button>
+  <button class="tab" data-view="card">The Card</button>
+  <button class="tab" data-view="drills">Drills</button>
+  <button class="tab" data-view="table">Practice Table</button>
+  <button class="tab" data-view="glossary">Glossary</button>
+</nav>
+
+<main id="main">
+
+  <!-- ============================================================ LEARN -->
+  <section class="view" id="view-learn">
+    <div class="lesson-layout">
+      <aside class="lesson-nav" id="lessonNav"></aside>
+      <article class="lesson-body" id="lessonBody"></article>
+    </div>
+  </section>
+
+  <!-- ============================================================ TILES -->
+  <section class="view" id="view-tiles">
+    <div class="pane">
+      <h2>The 152 tiles</h2>
+      <p class="lead">Click any tile to hear what it is called at the table.
+        Turn off the corner labels to test yourself.</p>
+      <label class="toggle">
+        <input type="checkbox" id="labelToggle" checked />
+        <span>Show corner labels</span>
+      </label>
+      <div id="tileBrowser"></div>
+      <div class="tile-detail" id="tileDetail" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============================================================= CARD -->
+  <section class="view" id="view-card">
+    <div class="pane">
+      <h2>Reading the card</h2>
+      <div class="callout warn">
+        <strong>These are practice hands, not the official card.</strong>
+        The National Mah Jongg League publishes a new card every year and it is
+        the only legal source of hands — buy the current one at
+        <span class="mono">nationalmahjonggleague.org</span>. The lines below are
+        generic teaching examples written in the same notation so you can learn
+        to read it.
+      </div>
+      <div class="notation-key" id="notationKey"></div>
+      <div id="cardList"></div>
+    </div>
+  </section>
+
+  <!-- =========================================================== DRILLS -->
+  <section class="view" id="view-drills">
+    <div class="pane">
+      <h2>Drills</h2>
+      <div class="drill-picker" id="drillPicker"></div>
+      <div class="drill-stage" id="drillStage"></div>
+    </div>
+  </section>
+
+  <!-- ============================================================ TABLE -->
+  <section class="view" id="view-table">
+    <div class="pane wide">
+      <div class="table-head">
+        <h2>Practice Table</h2>
+        <button class="btn primary" id="newGameBtn">New game</button>
+      </div>
+      <p class="lead">A simplified four-player game against three bots — enough
+        to drill the Charleston, calling discards, and spotting your hand. See
+        the simplifications listed at the bottom.</p>
+      <div id="tableApp"></div>
+    </div>
+  </section>
+
+  <!-- ========================================================= GLOSSARY -->
+  <section class="view" id="view-glossary">
+    <div class="pane">
+      <h2>Glossary</h2>
+      <input type="search" id="glossarySearch" placeholder="Filter terms…" />
+      <dl class="glossary" id="glossaryList"></dl>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <span>Built for learning American mah jongg (NMJL rules). Hands shown are
+    generic practice patterns — play from the current official card.</span>
+  <button class="btn ghost small" id="resetProgress">Reset progress</button>
+</footer>
+
+<script src="engine.js"></script>
+<script src="content.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
